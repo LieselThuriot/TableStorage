@@ -123,7 +123,7 @@ namespace TableStorage
             {
                 if (member is IPropertySymbol property)
                 {
-                    if (property.Type.Name is "TableSet" or "BlobSet")
+                    if (property.Type.Name is "TableSet" or "BlobSet" or "AppendBlobSet")
                     {
                         ITypeSymbol tableSetType = ((INamedTypeSymbol)property.Type).TypeArguments[0];
                         members.Add(new(member.Name, tableSetType.ToDisplayString(), property.Type.TypeKind, property.Type.Name));
@@ -170,7 +170,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
     {
         public static IServiceCollection Add").Append(classToGenerate.Name).Append(@"(this IServiceCollection services, string connectionString, Action<TableStorage.TableOptions> configure = null");
 
-        bool hasBlobSets = classToGenerate.Members.Any(x => x.SetType is "BlobSet");
+        bool hasBlobSets = classToGenerate.Members.Any(x => x.SetType is "BlobSet" or "AppendBlobSet");
 
         if (hasBlobSets)
         {
@@ -197,7 +197,6 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         if (hasBlobSets)
         {
-
             sb.Append(@"
         private TableStorage.IBlobCreator _blobCreator { get; init; }
 
@@ -211,6 +210,18 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             where T : class, TableStorage.IBlobEntity, new()
         {
             return _blobCreator.CreateSet<T>(tableName, partitionKeyProxy, rowKeyProxy);
+        }
+
+        public AppendBlobSet<T> GetAppendBlobSet<T>(string tableName)
+            where T : class, TableStorage.IBlobEntity, new()
+        {
+            return _blobCreator.CreateAppendSet<T>(tableName);
+        }
+
+        public AppendBlobSet<T> GetAppendBlobSet<T>(string tableName, string partitionKeyProxy = null, string rowKeyProxy = null)
+            where T : class, TableStorage.IBlobEntity, new()
+        {
+            return _blobCreator.CreateAppendSet<T>(tableName, partitionKeyProxy, rowKeyProxy);
         }");
         }
 
@@ -261,7 +272,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             ").Append(item.Name).Append(" = ").Append(item.Type).Append(".Create").Append(item.SetType).Append('(');
 
             string name = item.Name;
-            if (item.SetType is "BlobSet")
+            if (item.SetType is "BlobSet" or "AppendBlobSet")
             {
                 sb.Append("blobC");
                 name = name.ToLowerInvariant();

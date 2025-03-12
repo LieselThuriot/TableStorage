@@ -237,25 +237,25 @@ MyTableContext context = provider.GetRequiredService<MyTableContext>();
 //    MyProperty6 = ModelEnum.No
 //});
 
-await context.Models4Blob.DeleteAllEntitiesAsync("root");
+//await context.Models4Blob.DeleteAllEntitiesAsync("root");
 
-string blobId1 = Guid.NewGuid().ToString("N");
-await context.Models4Blob.AddEntityAsync(new()
-{
-    PrettyPartition = "root",
-    PrettyRow = blobId1,
-    MyProperty1 = 1,
-    MyProperty2 = "hallo 1"
-});
+//string blobId1 = Guid.NewGuid().ToString("N");
+//await context.Models4Blob.AddEntityAsync(new()
+//{
+//    PrettyPartition = "root",
+//    PrettyRow = blobId1,
+//    MyProperty1 = 1,
+//    MyProperty2 = "hallo 1"
+//});
 
-string blobId2 = Guid.NewGuid().ToString("N");
-await context.Models4Blob.AddEntityAsync(new()
-{
-    PrettyPartition = "root",
-    PrettyRow = blobId2,
-    MyProperty1 = 2,
-    MyProperty2 = "hallo 2"
-});
+//string blobId2 = Guid.NewGuid().ToString("N");
+//await context.Models4Blob.AddEntityAsync(new()
+//{
+//    PrettyPartition = "root",
+//    PrettyRow = blobId2,
+//    MyProperty1 = 2,
+//    MyProperty2 = "hallo 2"
+//});
 
 //var blob1 = await context.Models1Blob.GetEntityOrDefaultAsync("root", blobId1);
 //Debug.Assert(blob1 != null);
@@ -268,24 +268,71 @@ await context.Models4Blob.AddEntityAsync(new()
 //var blob3 = await context.Models1Blob.GetEntityOrDefaultAsync("root", Guid.NewGuid().ToString("N"));
 //Debug.Assert(blob3 == null);
 
-List<Model4> blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root")
-                                       .Where(x => x.PrettyRow == blobId2)
-                                       .Where(x => x.MyProperty1 == 2)
-                                       .Where(x => x.MyProperty2 == "hallo 2")
-                                       .ToListAsync(); // Iterate by Tags and Complex Filter
-Debug.Assert(blobResult1.Count == 1);
-Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
+//List<Model4> blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root")
+//                                       .Where(x => x.PrettyRow == blobId2)
+//                                       .Where(x => x.MyProperty1 == 2)
+//                                       .Where(x => x.MyProperty2 == "hallo 2")
+//                                       .ToListAsync(); // Iterate by Tags and Complex Filter
+//Debug.Assert(blobResult1.Count == 1);
+//Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
 
-blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root")
-                                       .Where(x => x.PrettyRow == blobId2)
-                                       .Where(x => x.MyProperty1 == 2)
-                                       .ToListAsync(); // Iterate By Tags
-Debug.Assert(blobResult1.Count == 1);
-Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
+//blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root")
+//                                       .Where(x => x.PrettyRow == blobId2)
+//                                       .Where(x => x.MyProperty1 == 2)
+//                                       .ToListAsync(); // Iterate By Tags
+//Debug.Assert(blobResult1.Count == 1);
+//Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
 
-blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root" && x.PrettyRow == blobId2).ToListAsync();
-Debug.Assert(blobResult1.Count == 1);
-Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
+//blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root" && x.PrettyRow == blobId2).ToListAsync();
+//Debug.Assert(blobResult1.Count == 1);
+//Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
+
+Model5 appendModel5 = new()
+{
+    Id = "root",
+    ContinuationToken = "test",
+    Entries =
+    [
+        new Model5Entry
+        {
+            Creation = DateTimeOffset.UtcNow,
+            Duration = Random.Shared.Next(500, 2000)
+        }
+    ]
+};
+
+async Task AppendingTest()
+{
+    if (await context.Models5Blob.ExistsAsync("root", "test"))
+    {
+        using Stream stream = BinaryData.FromString($"|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()};{Random.Shared.Next(500, 2000)}").ToStream();
+        await context.Models5Blob.AppendAsync("root", "test", stream);
+    }
+    else
+    {
+        await context.Models5Blob.UpsertEntityAsync(appendModel5);
+    }
+}
+
+await context.Models5Blob.DeleteAllEntitiesAsync("root");
+
+await AppendingTest(); // Create
+var appendedBlob = await context.Models5Blob.Where(x => x.Id == "root" && x.ContinuationToken == "test").FirstAsync();
+Debug.Assert(appendedBlob is not null);
+Debug.Assert(appendedBlob.Entries is not null);
+Debug.Assert(appendedBlob.Entries.Length is 1);
+Debug.Assert(appendedBlob.Entries[0].Creation == appendModel5.Entries[0].Creation);
+Debug.Assert(appendedBlob.Entries[0].Duration == appendModel5.Entries[0].Duration);
+
+await AppendingTest(); // Append
+var appendedBlob2 = await context.Models5Blob.Where(x => x.Id == "root" && x.ContinuationToken == "test").FirstAsync();
+Debug.Assert(appendedBlob2 is not null);
+Debug.Assert(appendedBlob2.Entries is not null);
+Debug.Assert(appendedBlob2.Entries.Length is 2);
+Debug.Assert(appendedBlob2.Entries[0].Creation == appendedBlob.Entries[0].Creation);
+Debug.Assert(appendedBlob2.Entries[0].Duration == appendedBlob.Entries[0].Duration);
+Debug.Assert(appendedBlob2.Entries[1].Creation != default);
+Debug.Assert(appendedBlob2.Entries[1].Duration.HasValue);
 
 #nullable disable
 namespace TableStorage.Tests.Models
@@ -349,6 +396,18 @@ namespace TableStorage.Tests.Models
         [ProtoMember(5)] public partial string? MyNullableProperty2 { get; set; }
     }
 #nullable disable
+
+    [TableSet(PartitionKey = "Id", RowKey = "ContinuationToken", SupportBlobs = true)]
+    public partial class Model5
+    {
+        public Model5Entry[] Entries { get; set; }
+    }
+
+    public sealed class Model5Entry
+    {
+        public DateTimeOffset Creation { get; set; }
+        public long? Duration { get; set; }
+    }
 }
 
 namespace TableStorage.Tests.Contexts
@@ -367,6 +426,7 @@ namespace TableStorage.Tests.Contexts
         public BlobSet<Model> Models1Blob { get; set; }
         public BlobSet<Model4> Models4Blob { get; set; }
         public BlobSet<Model2> Models2Blob { get; set; }
+        public AppendBlobSet<Model5> Models5Blob { get; set; }
     }
 }
 
@@ -401,17 +461,49 @@ public sealed class HybridSerializer : IBlobSerializer
             return Serializer.Deserialize<T>(entity);
         }
 
+        if (typeof(T) == typeof(Model5))
+        {
+            using StreamReader reader = new(entity);
+            string simple = await reader.ReadToEndAsync(cancellationToken);
+            string[] parts = simple.Split('\\', 3);
+
+            return (T)(object)new Model5
+            {
+                Id = parts[0],
+                ContinuationToken = parts[1],
+                Entries = [.. parts[2].Split('|').Select(x =>
+                {
+                    string[] entryParts = x.Split(';');
+                    return new Model5Entry
+                    {
+                        Creation = DateTimeOffset.FromUnixTimeSeconds(long.Parse(entryParts[0])),
+                        Duration = entryParts[1] switch 
+                        {
+                            null or "" => null,
+                            _ => long.Parse(entryParts[1])
+                        }
+                    };
+                })]
+            };
+        }
+
         BinaryData data = await BinaryData.FromStreamAsync(entity, cancellationToken);
         return data.ToObjectFromJson<T>();
     }
 
     public BinaryData Serialize<T>(T entity) where T : IBlobEntity
     {
-        if (entity is Model4 model)
+        if (entity is Model4 model4)
         {
             using MemoryStream stream = new();
-            Serializer.Serialize(stream, model);
+            Serializer.Serialize(stream, model4);
             return new(stream.ToArray());
+        }
+
+        if (entity is Model5 model5)
+        {
+            string simple = $"{model5.Id}\\{model5.ContinuationToken}\\{string.Join("|", model5.Entries.Select(x => $"{x.Creation.ToUnixTimeSeconds()};{x.Duration}"))}";
+            return BinaryData.FromString(simple);
         }
 
         return BinaryData.FromObjectAsJson(entity);

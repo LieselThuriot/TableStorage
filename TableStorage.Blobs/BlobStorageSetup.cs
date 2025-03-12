@@ -26,8 +26,11 @@ public static class BlobStorageSetup
 
         BlobSet<T> IBlobCreator.CreateSet<T>(string tableName) => new(_factory, tableName, _options, null, null, []);
         BlobSet<T> IBlobCreator.CreateSet<T>(string tableName, params IReadOnlyCollection<string> tags) => new(_factory, tableName, _options, null, null, tags);
-
         BlobSet<T> IBlobCreator.CreateSet<T>(string tableName, string partitionKeyProxy, string rowKeyProxy, params IReadOnlyCollection<string> tags) => new(_factory, tableName, _options, partitionKeyProxy, rowKeyProxy, tags);
+
+        AppendBlobSet<T> IBlobCreator.CreateAppendSet<T>(string tableName) => new(_factory, tableName, _options, null, null, []);
+        AppendBlobSet<T> IBlobCreator.CreateAppendSet<T>(string tableName, params IReadOnlyCollection<string> tags) => new(_factory, tableName, _options, null, null, tags);
+        AppendBlobSet<T> IBlobCreator.CreateAppendSet<T>(string tableName, string partitionKeyProxy, string rowKeyProxy, params IReadOnlyCollection<string> tags) => new(_factory, tableName, _options, partitionKeyProxy, rowKeyProxy, tags);
     }
 
     private sealed class JsonBlobSerializer : IBlobSerializer

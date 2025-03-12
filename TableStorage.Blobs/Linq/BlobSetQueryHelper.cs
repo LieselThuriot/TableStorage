@@ -1,14 +1,16 @@
-﻿using System.Linq.Expressions;
+﻿using Azure.Storage.Blobs.Specialized;
+using System.Linq.Expressions;
 
 namespace TableStorage.Linq;
 
-internal sealed class BlobSetQueryHelper<T>(BlobSet<T> table) :
+internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> table) :
     IAsyncEnumerable<T>,
     IBlobEnumerable<T>,
     IFilteredBlobQueryable<T>
     where T : IBlobEntity
+    where TClient : BlobBaseClient
 {
-    private readonly BlobSet<T> _table = table;
+    private readonly BaseBlobSet<T, TClient> _table = table;
     private Expression<Func<T, bool>>? _filter;
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
@@ -21,7 +23,7 @@ internal sealed class BlobSetQueryHelper<T>(BlobSet<T> table) :
         return Iterate();
         async IAsyncEnumerator<T> Iterate()
         {
-            await foreach ((BlobClient client, LazyAsync<T?> entity) result in _table.QueryInternalAsync(_filter, cancellationToken))
+            await foreach ((TClient client, LazyAsync<T?> entity) result in _table.QueryInternalAsync(_filter, cancellationToken))
             {
                 T? entity = await result.entity;
 
@@ -37,7 +39,7 @@ internal sealed class BlobSetQueryHelper<T>(BlobSet<T> table) :
     {
         int count = 0;
 
-        await foreach ((BlobClient client, LazyAsync<T?> _) in _table.QueryInternalAsync(_filter, token))
+        await foreach ((TClient client, LazyAsync<T?> _) in _table.QueryInternalAsync(_filter, token))
         {
             await client.DeleteIfExistsAsync(cancellationToken: token);
             count++;

@@ -1,0 +1,56 @@
+﻿using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+
+namespace TableStorage;
+
+public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
+    where T : IBlobEntity
+{
+    internal AppendBlobSet(BlobStorageFactory factory, string tableName, BlobOptions options, string? partitionKeyProxy, string? rowKeyProxy, IReadOnlyCollection<string> tags)
+        : base(factory, tableName, options, partitionKeyProxy, rowKeyProxy, tags)
+    {
+    }
+
+    protected override AppendBlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetAppendBlobClient(id);
+
+    public async Task AppendAsync(string partitionKey, string rowKey, Stream stream, CancellationToken cancellationToken = default)
+    {
+        AppendBlobClient client = await GetClient(partitionKey, rowKey);
+
+        int maxBlockSize = client.AppendBlobMaxAppendBlockBytes;
+        if (maxBlockSize > stream.Length)
+        {
+            await client.AppendBlockAsync(stream, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            byte[] buffer = new byte[maxBlockSize];
+            int bytesRead;
+            while ((bytesRead = await stream.ReadAsync(buffer, 0, maxBlockSize, cancellationToken)) > 0)
+            {
+                using var data = BinaryData.FromBytes(buffer.AsMemory(0, bytesRead)).ToStream();
+                await client.AppendBlockAsync(data, cancellationToken: cancellationToken);
+            }
+        }
+    }
+
+    protected override async Task Upload(AppendBlobClient blob, T entity, CancellationToken cancellationToken)
+    {
+        BinaryData data = _options.Serializer.Serialize(entity);
+
+        AppendBlobCreateOptions? options = null;
+
+        if (_options.UseTags && !_options.IsHierarchical)
+        {
+            Dictionary<string, string> tags = CreateTags(entity);
+
+            options = new()
+            {
+                Tags = tags
+            };
+        }
+
+        await blob.CreateAsync(options, cancellationToken);
+        await blob.AppendBlockAsync(data.ToStream(), cancellationToken: cancellationToken);
+    }
+}

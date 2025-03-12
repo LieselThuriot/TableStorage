@@ -410,6 +410,41 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
             sb.Append(@"]);
         }
+
+        [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+        public static AppendBlobSet<").Append(classToGenerate.Name).Append(@"> CreateAppendBlobSet(TableStorage.IBlobCreator creator, string name)
+        {
+            return creator.CreateAppendSet<").Append(classToGenerate.Name).Append(@">(name, ");
+
+            if (hasPartitionKeyProxy)
+            {
+                sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
+            }
+            else
+            {
+                sb.Append("null");
+            }
+
+            sb.Append(", ");
+
+            if (hasRowKeyProxy)
+            {
+                sb.Append('"').Append(rowKeyProxy.Name).Append('"');
+            }
+            else
+            {
+                sb.Append("null");
+            }
+
+            sb.Append(", [");
+
+            foreach (string? tag in classToGenerate.Members.Where(x => x.TagBlob).Select(x => x.Name))
+            {
+                sb.Append('"').Append(tag).Append("\", ");
+            }
+
+            sb.Append(@"]);
+        }
 ");
         }
 
