@@ -1,5 +1,4 @@
-﻿using Azure.Storage.Blobs.Models;
-using Azure.Storage.Blobs.Specialized;
+﻿using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using TableStorage.Visitors;
@@ -32,7 +31,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         _tags = tags;
         _containerClient = new(() => factory.GetClient(tableName));
     }
-
+    
     protected Task<TClient> GetClient(IBlobEntity entity)
     {
         return GetClient(entity.PartitionKey, entity.RowKey);

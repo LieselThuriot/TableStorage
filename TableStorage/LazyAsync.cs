@@ -2,7 +2,7 @@
 
 namespace TableStorage;
 
-internal class LazyAsync<T>(Func<Task<T>> taskFactory) : Lazy<Task<T>>(() => taskFactory())
+internal sealed class LazyAsync<T>(Func<Task<T>> taskFactory) : Lazy<Task<T>>(() => taskFactory())
 {
     public TaskAwaiter<T> GetAwaiter() => Value.GetAwaiter();
 }

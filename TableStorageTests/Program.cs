@@ -19,6 +19,7 @@ services.AddMyTableContext("UseDevelopmentStorage=true",
     },
     configureBlobs: x =>
     {
+        x.CreateContainerIfNotExists = true;
         x.Serializer = new HybridSerializer();
     });
 ServiceProvider provider = services.BuildServiceProvider();

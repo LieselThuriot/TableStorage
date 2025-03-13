@@ -15,7 +15,7 @@ public static class BlobStorageSetup
 
         options.Serializer ??= JsonBlobSerializer.Instance;
 
-        BlobStorageFactory factory = new(connectionString, options.CreateTableIfNotExists);
+        BlobStorageFactory factory = new(connectionString, options.CreateContainerIfNotExists);
         return new BlobSetCreator(factory, options);
     }
 

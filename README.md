@@ -1,10 +1,11 @@
 ﻿# TableStorage
-Streamlined way of working with Azure Data Tables
+Streamlined way of working with Azure Data Tables and Blobs.
 
 ## Installation
 
 ```bash
 dotnet add package TableStorage
+dotnet add package TableStorage.Blobs
 ```
 
 ## Usage
@@ -71,7 +72,7 @@ public partial class Model
 }
 ```
 
-Place your tables on your TableContext. The sample below will create 2 tables in table storage, named Models1 and Models2. It will also create a blob container named BlobModels1.
+Place your tables on your TableContext. The sample below will create 2 tables in table storage, named Models1 and Models2. It will also create a blob container named BlobModels1 which is a set for Block blobs. BlobModels2 is a set for Append blobs.
 
 ```csharp
 [TableContext]
@@ -79,6 +80,7 @@ public partial class MyTableContext
 {
     public TableSet<Model> Models1 { get; set; }
     public BlobSet<Model> BlobModels1 { get; set; }
+    public AppendBlobSet<Model> BlobModels2 { get; set; }
     public TableSet<Model> Models2 { get; set; }
 }
 ```
@@ -112,7 +114,7 @@ static void ConfigureTables(TableOptions options)
 
 static void ConfigureBlobs(BlobOptions options)
 {
-    options.IsHierarchical = true;
+    options.UseTags = true;
 }
 ```
 
@@ -149,3 +151,51 @@ Since these return an instance that implements `IAsyncEnumerable`, `System.Linq.
 
 Note: `Select` will include the actual transformation. If you want the original model, with only the selected fields retrieved, use `SelectFields` instead.
 If you are using Native AOT, you will need to use `SelectFields` as `Select` will not work.
+
+
+## Custom Serialization
+
+Blob storage allows for custom serialization and deserialization. By default, `System.Text.Json` will be used for serialization. 
+You can define your own by implementing `IBlobSerializer` and passing it to the `BlobOptions` object.
+
+Here's an example for a model that uses ProtoBuf:
+```csharp
+builder.Services.AddMyTableContext(builder.Configuration.GetConnectionString("MyConnectionString"), ConfigureTables, ConfigureBlobs);
+
+static void ConfigureTables(TableOptions options)
+{
+    options.TableMode = TableUpdateMode.Merge;
+}
+
+static void ConfigureBlobs(BlobOptions options)
+{
+    options.UseTags = true;
+    options.Serializer = new ProtoBufSerializer();
+}
+
+[TableSet(PartitionKey = "PrettyPartition", RowKey = "PrettyRow", SupportBlobs = true)]
+[ProtoContract(IgnoreListHandling = true)] // Important to ignore list handling because we are generating an IDictionary implementation that is not supported by protobuf
+public partial class Model
+{
+    [ProtoMember(1)] public partial string PrettyPartition { get; set; } // We can partial the PK and RowKey to enable custom serialization attributes
+    [ProtoMember(2)] public partial string PrettyRow { get; set; }
+    [ProtoMember(3)] public partial int MyProperty1 { get; set; }
+    [ProtoMember(4)] public partial string MyProperty2 { get; set; }
+    [ProtoMember(5)] public partial string? MyNullableProperty2 { get; set; }
+}
+
+public sealed class ProtoBufSerializer : IBlobSerializer
+{
+    public async ValueTask<T> DeserializeAsync<T>(Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
+    {
+        return Serializer.Deserialize<T>(entity);
+    }
+
+    public BinaryData Serialize<T>(T entity) where T : IBlobEntity
+    {
+        using MemoryStream stream = new();
+        Serializer.Serialize(stream, model4);
+        return new(stream.ToArray());
+    }
+}
+```

@@ -2,13 +2,6 @@
 
 	<PropertyGroup>
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
-		<Company>Steven Thuriot</Company>
-		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/StevenThuriot/TableStorage</RepositoryUrl>
-		<PackageProjectUrl>https://github.com/StevenThuriot/TableStorage</PackageProjectUrl>
-		<Copyright>Steven Thuriot</Copyright>
-		<Authors>Steven Thuriot</Authors>
-		<Version>5.0.0-preview.2</Version>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>TableStorage.png</PackageIcon>
 		<RootNamespace>TableStorage</RootNamespace>
