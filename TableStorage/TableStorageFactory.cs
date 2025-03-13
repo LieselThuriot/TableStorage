@@ -7,7 +7,7 @@ internal sealed class TableStorageFactory(string connectionString, bool createIf
 
     public async Task<TableClient> GetClient(string tableName)
     {
-        TableClient client = _client.GetTableClient(tableName);
+        TableClient client = _client.GetTableClient(tableName ?? throw new ArgumentNullException(nameof(tableName)));
 
         if (_createIfNotExists)
         {

@@ -168,6 +168,8 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         }
     }
 
+    public Task<bool> ExistsAsync(T entity, CancellationToken cancellationToken = default) => ExistsAsync(entity.PartitionKey, entity.RowKey, cancellationToken);
+
     public async Task<bool> ExistsAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
     {
         TClient blobClient = await GetClient(partitionKey, rowKey);

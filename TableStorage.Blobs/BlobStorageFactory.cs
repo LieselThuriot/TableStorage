@@ -7,11 +7,11 @@ internal sealed class BlobStorageFactory(string connectionString, bool autoCreat
 
     public async Task<BlobContainerClient> GetClient(string container)
     {
-        BlobContainerClient client = _client.GetBlobContainerClient(container ?? throw new ArgumentNullException());
+        BlobContainerClient client = _client.GetBlobContainerClient(container ?? throw new ArgumentNullException(nameof(container)));
 
-        if (_autoCreate && !await client.ExistsAsync())
+        if (_autoCreate)
         {
-            await client.CreateAsync();
+            _ = await client.CreateIfNotExistsAsync();
         }
 
         return client;

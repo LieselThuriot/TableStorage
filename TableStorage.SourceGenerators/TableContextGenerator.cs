@@ -230,23 +230,25 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         public TableSet<T> GetTableSet<T>(string tableName)
             where T : class, Azure.Data.Tables.ITableEntity, new()
         {
-            if (TableSet<T>.HasChangeTracking)
-            {
-                return ((dynamic) _creator).CreateSetWithChangeTracking<T>(tableName);
-            }
-
             return _creator.CreateSet<T>(tableName);
         }
 
         public TableSet<T> GetTableSet<T>(string tableName, string partitionKeyProxy = null, string rowKeyProxy = null)
             where T : class, Azure.Data.Tables.ITableEntity, new()
         {
-            if (TableSet<T>.HasChangeTracking)
-            {
-                return ((dynamic) _creator).CreateSetWithChangeTracking<T>(tableName);
-            }
-
             return _creator.CreateSet<T>(tableName, partitionKeyProxy, rowKeyProxy);
+        }
+
+        public TableSet<T> GetTableSetWithChangeTracking<T>(string tableName)
+            where T : class, Azure.Data.Tables.ITableEntity, TableStorage.IChangeTracking, new()
+        {
+            return _creator.CreateSetWithChangeTracking<T>(tableName);
+        }
+
+        public TableSet<T> GetTableSetWithChangeTracking<T>(string tableName, string partitionKeyProxy = null, string rowKeyProxy = null)
+            where T : class, Azure.Data.Tables.ITableEntity, TableStorage.IChangeTracking, new()
+        {
+            return _creator.CreateSetWithChangeTracking<T>(tableName, partitionKeyProxy, rowKeyProxy);
         }
 
         private ").Append(classToGenerate.Name).Append(@"(TableStorage.ICreator creator");

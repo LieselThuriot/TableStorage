@@ -4,7 +4,7 @@ using TableStorage.Visitors;
 
 namespace TableStorage;
 
-public abstract class TableSet<T> : IStorageSet<T> 
+public abstract class TableSet<T> : IStorageSet<T>
     where T : class, ITableEntity, new()
 {
     public string Name { get; }
@@ -15,8 +15,6 @@ public abstract class TableSet<T> : IStorageSet<T>
     internal TableOptions Options { get; }
     internal string? PartitionKeyProxy { get; }
     internal string? RowKeyProxy { get; }
-
-    public static bool HasChangeTracking { get; } = typeof(IChangeTracking).IsAssignableFrom(typeof(T));
 
     internal TableSet(TableStorageFactory factory, string tableName, TableOptions options)
     {
