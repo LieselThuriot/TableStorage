@@ -13,10 +13,8 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
 
     protected override AppendBlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetAppendBlobClient(id);
 
-    public async Task AppendAsync(string partitionKey, string rowKey, Stream stream, CancellationToken cancellationToken = default)
+    private static async Task AppendInternal(AppendBlobClient client, Stream stream, CancellationToken cancellationToken)
     {
-        AppendBlobClient client = await GetClient(partitionKey, rowKey);
-
         int maxBlockSize = client.AppendBlobMaxAppendBlockBytes;
         if (maxBlockSize > stream.Length)
         {
@@ -32,6 +30,12 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
                 await client.AppendBlockAsync(data, cancellationToken: cancellationToken);
             }
         }
+    }
+
+    public async Task AppendAsync(string partitionKey, string rowKey, Stream stream, CancellationToken cancellationToken = default)
+    {
+        AppendBlobClient client = await GetClient(partitionKey, rowKey);
+        await AppendInternal(client, stream, cancellationToken);
     }
 
     protected override async Task Upload(AppendBlobClient blob, T entity, CancellationToken cancellationToken)
@@ -51,6 +55,6 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
         }
 
         await blob.CreateAsync(options, cancellationToken);
-        await blob.AppendBlockAsync(data.ToStream(), cancellationToken: cancellationToken);
+        await AppendInternal(blob, data.ToStream(), cancellationToken);
     }
 }

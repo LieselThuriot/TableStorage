@@ -5,17 +5,17 @@ namespace TableStorage.Linq;
 
 internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> table) :
     IAsyncEnumerable<T>,
-    IBlobEnumerable<T>,
     IFilteredBlobQueryable<T>
     where T : IBlobEntity
     where TClient : BlobBaseClient
 {
     private readonly BaseBlobSet<T, TClient> _table = table;
     private Expression<Func<T, bool>>? _filter;
+    private readonly List<Func<BlobId, bool>> _whereIdFilters = [];
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
-        if (_filter is null)
+        if (_filter is null && _whereIdFilters.Count is 0)
         {
             return _table.GetAsyncEnumerator(cancellationToken);
         }
@@ -23,9 +23,14 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
         return Iterate();
         async IAsyncEnumerator<T> Iterate()
         {
-            await foreach ((TClient client, LazyAsync<T?> entity) result in _table.QueryInternalAsync(_filter, cancellationToken))
+            await foreach ((TClient client, LazyAsync<T?> result) in _table.QueryInternalAsync(_filter, cancellationToken))
             {
-                T? entity = await result.entity;
+                if (!WhereFiltersMatch(client))
+                {
+                    continue;
+                }
+
+                T? entity = await result;
 
                 if (entity is not null)
                 {
@@ -35,12 +40,34 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
         }
     }
 
+    private bool WhereFiltersMatch(TClient client)
+    {
+        if (_whereIdFilters.Count is 0)
+        {
+            return true;
+        }
+
+        var id = BlobId.Get(client);
+        return _whereIdFilters.All(filter => filter(id));
+    }
+
+    public IBlobAsyncEnumerable<T> WhereId(Func<BlobId, bool> predicate)
+    {
+        _whereIdFilters.Add(predicate);
+        return this;
+    }
+
     public async Task<int> BatchDeleteAsync(CancellationToken token = default)
     {
         int count = 0;
 
         await foreach ((TClient client, LazyAsync<T?> _) in _table.QueryInternalAsync(_filter, token))
         {
+            if (!WhereFiltersMatch(client))
+            {
+                continue;
+            }
+
             await client.DeleteIfExistsAsync(cancellationToken: token);
             count++;
         }

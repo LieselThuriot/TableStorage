@@ -17,12 +17,11 @@ public interface IBlobAsyncEnumerable<T> : IAsyncEnumerable<T>
     public Task<int> BatchUpdateAsync(Expression<Func<T, T>> update, CancellationToken token = default);
 }
 
-public interface IBlobEnumerable<T> : ICanTakeOneBlobQueryable<T>, IAsyncEnumerable<T>;
-
 public interface IFilteredBlobQueryable<T> : IBlobAsyncEnumerable<T>, ICanTakeOneBlobQueryable<T>
     where T : IBlobEntity
 {
     public IFilteredBlobQueryable<T> Where(Expression<Func<T, bool>> predicate);
     public IFilteredBlobQueryable<T> ExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements);
     public IFilteredBlobQueryable<T> NotExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements);
+    public IBlobAsyncEnumerable<T> WhereId(Func<BlobId, bool> predicate);
 }

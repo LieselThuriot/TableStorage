@@ -5,6 +5,24 @@ using TableStorage.Visitors;
 
 namespace TableStorage;
 
+public readonly struct BlobId(string partitionKey, string rowKey)
+{
+    public string PartitionKey { get; } = partitionKey;
+    public string RowKey { get; } = rowKey;
+
+    internal static string Get(string partitionKey, string rowKey) =>
+            $"{partitionKey ?? throw new ArgumentNullException(nameof(partitionKey))}/{rowKey ?? throw new ArgumentNullException(nameof(rowKey))}";
+
+    internal static BlobId Get(BlobBaseClient client)
+    {
+        string id = client.Name;
+        int lastSlash = id.LastIndexOf('/') + 1;
+        string partitionKey = id.Substring(0, lastSlash - 1);
+        string rowKey = id.Substring(lastSlash);
+        return new(partitionKey, rowKey);
+    }
+}
+
 public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     where TClient : BlobBaseClient
     where T : IBlobEntity
@@ -31,7 +49,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         _tags = tags;
         _containerClient = new(() => factory.GetClient(tableName));
     }
-    
+
     protected Task<TClient> GetClient(IBlobEntity entity)
     {
         return GetClient(entity.PartitionKey, entity.RowKey);
@@ -39,13 +57,10 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     protected async Task<TClient> GetClient(string partitionKey, string rowKey)
     {
-        string id = GetBlobId(partitionKey, rowKey);
+        string id = BlobId.Get(partitionKey, rowKey);
         BlobContainerClient client = await _containerClient;
         return GetClient(client, id);
     }
-
-    protected static string GetBlobId(string partitionKey, string rowKey) =>
-            $"{partitionKey ?? throw new ArgumentNullException(nameof(partitionKey))}/{rowKey ?? throw new ArgumentNullException(nameof(rowKey))}";
 
     protected abstract TClient GetClient(BlobContainerClient containerClient, string id);
 
