@@ -1,4 +1,5 @@
-﻿using Azure.Storage.Blobs.Specialized;
+﻿using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 using TableStorage.Visitors;
@@ -13,14 +14,15 @@ public readonly struct BlobId(string partitionKey, string rowKey)
     internal static string Get(string partitionKey, string rowKey) =>
             $"{partitionKey ?? throw new ArgumentNullException(nameof(partitionKey))}/{rowKey ?? throw new ArgumentNullException(nameof(rowKey))}";
 
-    internal static BlobId Get(BlobBaseClient client)
+    internal static BlobId Parse(string id)
     {
-        string id = client.Name;
         int lastSlash = id.LastIndexOf('/') + 1;
         string partitionKey = id.Substring(0, lastSlash - 1);
         string rowKey = id.Substring(lastSlash);
         return new(partitionKey, rowKey);
     }
+
+    internal static BlobId Get(BlobBaseClient client) => Parse(client.Name);
 }
 
 public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
@@ -142,42 +144,11 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
         BlobContainerClient container = await _containerClient;
 
-        if (_options.IsHierarchical)
-        {
-            string prefix = partitionKey + '/';
+        string prefix = partitionKey + '/';
 
-            await foreach (Azure.Storage.Blobs.Models.BlobHierarchyItem blob in container.GetBlobsByHierarchyAsync(prefix: prefix, delimiter: "/", cancellationToken: cancellationToken))
-            {
-                if (!blob.IsBlob || blob.Blob.Deleted)
-                {
-                    continue;
-                }
-
-                await Delete(container, blob.Blob.Name, cancellationToken);
-            }
-        }
-        else if (_options.UseTags)
+        await foreach (BlobHierarchyItem blob in container.GetBlobsByHierarchyAsync(BlobTraits.None, BlobStates.None, prefix: prefix, delimiter: "/", cancellationToken: cancellationToken))
         {
-            await foreach (Azure.Storage.Blobs.Models.TaggedBlobItem blob in container.FindBlobsByTagsAsync($"partition='{partitionKey}'", cancellationToken))
-            {
-                await Delete(container, blob.BlobName, cancellationToken);
-            }
-        }
-        else
-        {
-            string prefix = partitionKey + '/';
-            await foreach (Azure.Storage.Blobs.Models.BlobItem blob in container.GetBlobsAsync(cancellationToken: cancellationToken))
-            {
-                if (!blob.Deleted && blob.Name.StartsWith(prefix))
-                {
-                    await Delete(container, blob.Name, cancellationToken);
-                }
-            }
-        }
-
-        async Task Delete(BlobContainerClient container, string name, CancellationToken cancellationToken)
-        {
-            TClient blobClient = GetClient(container, name);
+            TClient blobClient = GetClient(container, blob.Blob.Name);
             await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
         }
     }
@@ -244,29 +215,23 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
         BlobQueryVisitor visitor = new(_partitionKeyProxy, _rowKeyProxy, _tags);
         Expression<Func<T, bool>> visitedFilter = visitor.VisitAndConvert(filter, nameof(QueryInternalAsync));
-        LazyFilteringExpression<T> compiledFilter = filter;
 
         if (!visitor.Error)
         {
-            if (_options.UseTags && !_options.IsHierarchical)
+            if (_options.UseTags)
             {
                 if (visitor.SimpleFilter)
                 {
                     return IterateBlobsByTag(visitor.Filter!, cancellationToken);
                 }
 
-                return IterateBlobsByTagAndComplexFilter(visitor.Filter!, compiledFilter, cancellationToken);
+                return IterateBlobsByTagAndComplexFilter(visitor.Filter!, filter, cancellationToken);
             }
+        }
 
-            // Usecase: PartitionKey = 'a' and (RowKey = 'b' or RowKey = 'c')
-
-            ILookup<string, string> lookup = visitor.Tags.ToLookup();
-
-            var partitionKeys = lookup[PartitionTagConstant].ToList();
-            var rowKeys = lookup[RowTagConstant].ToList();
-            LazyFilteringExpression<T>? iterationFilter = !visitor.SimpleFilter || visitor.Tags.HasOthersThanDefaultKeys() ? compiledFilter : null;
-
-            return IterateHierarchicalFilteredOnPartitionAndRowKeys(partitionKeys, rowKeys, iterationFilter, cancellationToken);
+        if (visitor.OperandError && _options.UseTags && visitor.TagOnlyFilter)
+        {
+            return IterateFilteredByTagsAtRuntime(filter, cancellationToken);
         }
 
         return IterateFilteredAtRuntime(filter, cancellationToken);
@@ -276,31 +241,23 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     {
         BlobContainerClient container = await _containerClient;
 
-        await foreach (Azure.Storage.Blobs.Models.BlobItem blob in container.GetBlobsAsync(cancellationToken: cancellationToken))
+        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
         {
-            if (!blob.Deleted)
-            {
-                TClient client = GetClient(container, blob.Name);
-                yield return (client, new(() => Download(client, cancellationToken)));
-            }
+            TClient client = GetClient(container, blob.Name);
+            yield return (client, new(() => Download(client, cancellationToken)));
         }
     }
 
     private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateBlobsByTag(string filter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        BlobContainerClient container = await _containerClient;
-
-        if (_options.IsHierarchical)
-        {
-            throw new NotSupportedException("Hierarchical namespaces aren't supported in this method");
-        }
-
         if (!_options.UseTags)
         {
             throw new InvalidOperationException("Tags is disabled yet we ended up in a tags call");
         }
 
-        await foreach (Azure.Storage.Blobs.Models.TaggedBlobItem blob in container.FindBlobsByTagsAsync(filter, cancellationToken))
+        BlobContainerClient container = await _containerClient;
+
+        await foreach (TaggedBlobItem blob in container.FindBlobsByTagsAsync(filter, cancellationToken))
         {
             TClient client = GetClient(container, blob.BlobName);
             yield return (client, new(() => Download(client, cancellationToken)));
@@ -319,73 +276,38 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         }
     }
 
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateHierarchicalFilteredOnPartitionAndRowKeys(IReadOnlyCollection<string> partitionKeys, IReadOnlyCollection<string> rowKeys, LazyFilteringExpression<T>? filterInstance, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredAtRuntime(LazyFilteringExpression<T> filter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        BlobContainerClient container = await _containerClient;
-
-        if (partitionKeys.Count is 0)
-        {
-            await foreach ((TClient client, LazyAsync<T?> entity) result in IterateAllBlobs(cancellationToken))
-            {
-                if (!IsRowKeyMatch(result.client.Name))
-                {
-                    continue;
-                }
-
-                T? entity = await result.entity;
-                if (entity is not null && (filterInstance?.Invoke(entity) != false))
-                {
-                    yield return result!;
-                }
-            }
-        }
-        else
-        {
-            foreach (string partitionKey in partitionKeys)
-            {
-                string prefix = partitionKey + '/';
-
-                await foreach (Azure.Storage.Blobs.Models.BlobHierarchyItem blob in container.GetBlobsByHierarchyAsync(prefix: prefix, delimiter: "/", cancellationToken: cancellationToken))
-                {
-                    if (!blob.IsBlob || blob.Blob.Deleted || !IsRowKeyMatch(blob.Blob.Name))
-                    {
-                        continue;
-                    }
-
-                    TClient client = GetClient(container, blob.Blob.Name);
-                    T? entity = await Download(client, cancellationToken);
-
-                    if (entity is not null && (filterInstance?.Invoke(entity) != false))
-                    {
-                        yield return (client, new(() => Task.FromResult<T?>(entity)));
-                    }
-                }
-            }
-        }
-
-        bool IsRowKeyMatch(string name)
-        {
-            if (rowKeys.Count is 0)
-            {
-                return true;
-            }
-
-            int lastSlash = name.LastIndexOf('/') + 1;
-            string rowKey = name.Substring(lastSlash);
-            return rowKeys.Contains(rowKey);
-        }
-    }
-
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredAtRuntime(Expression<Func<T, bool>> filter, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        LazyFilteringExpression<T> compiledFilter = filter;
-
         await foreach ((TClient client, LazyAsync<T?> entity) result in IterateAllBlobs(cancellationToken))
         {
             T? entity = await result.entity;
-            if (entity is not null && compiledFilter.Invoke(entity))
+            if (entity is not null && filter.Invoke(entity))
             {
                 yield return result;
+            }
+        }
+    }
+
+    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredByTagsAtRuntime(Expression<Func<T, bool>> filter, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        if (!_options.UseTags)
+        {
+            throw new InvalidOperationException("Tags is disabled yet we ended up in a tags call");
+        }
+
+        BlobTagQueryVisitor<T> visitor = new(_partitionKeyProxy, _rowKeyProxy);
+        LazyFilteringExpression<BlobTagAccessor> compiledFilter = (Expression<Func<BlobTagAccessor, bool>>)visitor.Visit(filter);
+
+        BlobContainerClient container = await _containerClient;
+        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
+        {
+            BlobTagAccessor tags = new(blob.Tags);
+
+            if (compiledFilter.Invoke(tags))
+            {
+                TClient client = GetClient(container, blob.Name);
+                LazyAsync<T?> entity = new(() => Download(client, cancellationToken));
+                yield return (client, entity);
             }
         }
     }

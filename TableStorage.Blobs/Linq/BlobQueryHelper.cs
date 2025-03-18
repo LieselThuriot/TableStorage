@@ -54,12 +54,6 @@ public static class BlobSetQueryHelper
         return CreateHelper(table).SingleOrDefaultAsync(token);
     }
 
-    public static IBlobAsyncEnumerable<T> WhereId<T>(this BlobSet<T> table, Func<BlobId, bool> predicate)
-        where T : IBlobEntity
-    {
-        return CreateHelper(table).WhereId(predicate);
-    }
-
     public static IFilteredBlobQueryable<T> Where<T>(this AppendBlobSet<T> table, Expression<Func<T, bool>> predicate)
         where T : IBlobEntity
     {
@@ -100,11 +94,5 @@ public static class BlobSetQueryHelper
         where T : IBlobEntity
     {
         return CreateHelper(table).SingleOrDefaultAsync(token);
-    }
-
-    public static IBlobAsyncEnumerable<T> WhereId<T>(this AppendBlobSet<T> table, Func<BlobId, bool> predicate)
-        where T : IBlobEntity
-    {
-        return CreateHelper(table).WhereId(predicate);
     }
 }

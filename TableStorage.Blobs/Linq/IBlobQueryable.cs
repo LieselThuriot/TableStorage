@@ -23,5 +23,4 @@ public interface IFilteredBlobQueryable<T> : IBlobAsyncEnumerable<T>, ICanTakeOn
     public IFilteredBlobQueryable<T> Where(Expression<Func<T, bool>> predicate);
     public IFilteredBlobQueryable<T> ExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements);
     public IFilteredBlobQueryable<T> NotExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements);
-    public IBlobAsyncEnumerable<T> WhereId(Func<BlobId, bool> predicate);
 }

@@ -9,7 +9,5 @@ public sealed class BlobOptions
 
     public IBlobSerializer Serializer { get; set; } = default!;
 
-    public bool IsHierarchical { get; set; }
-
     public bool UseTags { get; set; } = true;
 }

@@ -3,30 +3,36 @@ using System.Reflection;
 
 namespace TableStorage.Visitors;
 
+internal readonly struct TagCollectionEntry(string value, string operand)
+{
+    public string Operand { get; } = operand;
+    public string Value { get; } = value;
+}
+
 internal readonly struct TagCollection
 {
-    private readonly Dictionary<string, HashSet<string>> _tags;
+    private readonly Dictionary<string, HashSet<TagCollectionEntry>> _tags;
 
     public TagCollection()
     {
         _tags = [];
     }
 
-    public void Set(string tag, string value)
+    public void Set(string tag, string value, string operand)
     {
-        if (!_tags.TryGetValue(tag, out HashSet<string>? count))
+        if (!_tags.TryGetValue(tag, out HashSet<TagCollectionEntry>? count))
         {
             _tags[tag] = count = [];
         }
 
-        count.Add(value);
+        count.Add(new(value, operand));
     }
 
     public bool IsUnique() => _tags.Values.All(x => x.Count is 1);
 
-    public bool HasOthersThanDefaultKeys() => _tags.Keys.Any(x => x is not "partition" and not "row");
+    public bool HasOthersThanDefaultKeys() => _tags.Keys.Count > 2 || _tags.Keys.Any(x => x is not ("partition" or "row"));
 
-    public ILookup<string, string> ToLookup() => _tags.SelectMany(x => x.Value.Select(value => (x.Key, value))).ToLookup(x => x.Key, x => x.value);
+    public ILookup<string, TagCollectionEntry> ToLookup() => _tags.SelectMany(x => x.Value.Select(value => (x.Key, value))).ToLookup(x => x.Key, x => x.value);
 }
 
 internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKeyProxy, IEnumerable<string> tags) : ExpressionVisitor
@@ -36,13 +42,15 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
     private readonly IEnumerable<string> _tags = tags;
 
     private bool _simpleFilter = true;
-    public bool SimpleFilter
-    {
-        get => _simpleFilter && Tags.IsUnique();
-    }
+    public bool SimpleFilter => _simpleFilter && Tags.IsUnique();
 
-    public bool Error { get; private set; }
+    private bool _error;
+    private bool _operandError;
+    public bool Error => _error || _operandError;
+    public bool OperandError => !_error && _operandError;
     public string? Filter { get; private set; }
+
+    public bool TagOnlyFilter { get; private set; } = true;
 
     public TagCollection Tags { get; } = new();
     private readonly Dictionary<Expression, string> _filters = [];
@@ -116,7 +124,7 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
             }
             else if (_simpleFilter)
             {
-                Error = true;
+                _error = true;
             }
         }
 
@@ -132,8 +140,9 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
                 string? value = GetValue(right)?.ToString();
                 if (value is not null)
                 {
-                    filter = $"partition {ToSqlOperand(type)} '{value}'";
-                    Tags.Set("partition", value);
+                    string sqlOperand = ToSqlOperand(type);
+                    filter = $"partition {sqlOperand} '{value}'";
+                    Tags.Set("partition", value, sqlOperand);
                     return true;
                 }
             }
@@ -142,27 +151,30 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
                 string? value = GetValue(right)?.ToString();
                 if (value is not null)
                 {
-                    filter = $"row {ToSqlOperand(type)} '{value}'";
-                    Tags.Set("row", value);
+                    string sqlOperand = ToSqlOperand(type);
+                    filter = $"row {sqlOperand} '{value}'";
+                    Tags.Set("row", value, sqlOperand);
                     return true;
                 }
             }
             else if (_tags.Contains(member.Member.Name))
-            {
+            {                
                 string? value = GetValue(right)?.ToString();
                 if (value is not null)
                 {
+                    string sqlOperand = ToSqlOperand(type);
                     filter = $"""
-                    "{member.Member.Name}" {ToSqlOperand(type)} '{value}'
+                    "{member.Member.Name}" {sqlOperand} '{value}'
                     """;
 
-                    Tags.Set(member.Member.Name, value);
+                    Tags.Set(member.Member.Name, value, sqlOperand);
                     return true;
                 }
             }
             else
             {
                 _simpleFilter = false;
+                TagOnlyFilter = false;
             }
         }
 
@@ -192,7 +204,7 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
             }
         }
 
-        Error = true;
+        _error = true;
         return null;
     }
 
@@ -207,14 +219,14 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
 
             case ExpressionType.Or:
             case ExpressionType.OrElse:
-                Error = true; // Not supported ?
+                _operandError = true;
                 return "or";
 
             case ExpressionType.Equal:
                 return "=";
 
             case ExpressionType.NotEqual:
-                Error = true; // Not supported ?
+                _operandError = true;
                 return "!=";
 
             case ExpressionType.GreaterThan:
@@ -230,7 +242,7 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
                 return "<=";
 
             default:
-                Error = true;
+                _error = true;
                 return "";
         }
     }

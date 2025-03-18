@@ -44,7 +44,7 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
 
         AppendBlobCreateOptions? options = null;
 
-        if (_options.UseTags && !_options.IsHierarchical)
+        if (_options.UseTags)
         {
             Dictionary<string, string> tags = CreateTags(entity);
 
