@@ -11,6 +11,8 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
     ISelectedTakenTableQueryable<T>
     where T : class, ITableEntity, new()
 {
+    private static readonly ParameterExpression s_parameter = Expression.Parameter(typeof(T), "x");
+
     private readonly TableSet<T> _table = table;
 
     private HashSet<string>? _fields;
@@ -273,15 +275,16 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
             predicate = (Expression<Func<T, bool>>)visitor.Visit(predicate);
         }
 
+        ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], s_parameter);
+        predicate = predicateVisitor.VisitAndConvert(predicate, nameof(AddFilter));
+
         if (_filter is null)
         {
             _filter = predicate;
         }
         else
         {
-            InvocationExpression invokedExpr = Expression.Invoke(predicate, _filter.Parameters);
-            BinaryExpression combinedExpression = Expression.AndAlso(_filter.Body, invokedExpr);
-            _filter = Expression.Lambda<Func<T, bool>>(combinedExpression, _filter.Parameters);
+            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), s_parameter);
         }
 
         return this;

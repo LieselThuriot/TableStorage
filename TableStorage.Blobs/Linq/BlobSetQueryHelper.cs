@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
+using TableStorage.Visitors;
 
 namespace TableStorage.Linq;
 
@@ -9,6 +10,8 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
     where T : IBlobEntity
     where TClient : BlobBaseClient
 {
+    private static readonly ParameterExpression s_parameter = Expression.Parameter(typeof(T), "x");
+
     private readonly BaseBlobSet<T, TClient> _table = table;
     private Expression<Func<T, bool>>? _filter;
 
@@ -96,15 +99,16 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
 
     public IFilteredBlobQueryable<T> Where(Expression<Func<T, bool>> predicate)
     {
+        ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], s_parameter);
+        predicate = predicateVisitor.VisitAndConvert(predicate, nameof(Where));
+
         if (_filter is null)
         {
             _filter = predicate;
         }
         else
         {
-            InvocationExpression invokedExpr = Expression.Invoke(predicate, _filter.Parameters);
-            BinaryExpression combinedExpression = Expression.AndAlso(_filter.Body, invokedExpr);
-            _filter = Expression.Lambda<Func<T, bool>>(combinedExpression, _filter.Parameters);
+            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), s_parameter);
         }
 
         return this;

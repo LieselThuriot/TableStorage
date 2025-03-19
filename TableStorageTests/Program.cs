@@ -398,8 +398,8 @@ blobSearch = await context.Models4Blob.ExistsIn(x => x.PrettyPartition, ["root",
 Debug.Assert(blobSearch is not null);
 Debug.Assert(blobSearch.Count is 1);
 Debug.Assert(blobSearch.All(x => x.PrettyPartition == "root"));
-Debug.Assert(blobSearch.Any(x => x.PrettyRow == "pretty2"));
-Debug.Assert(blobSearch.Any(x => x.MyProperty1 == 2));
+Debug.Assert(blobSearch.All(x => x.PrettyRow == "pretty2"));
+Debug.Assert(blobSearch.All(x => x.MyProperty1 == 2));
 
 #nullable disable
 namespace TableStorage.Tests.Models

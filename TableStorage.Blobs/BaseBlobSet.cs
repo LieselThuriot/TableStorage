@@ -229,9 +229,9 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
             }
         }
 
-        if (visitor.OperandError && _options.UseTags && visitor.TagOnlyFilter)
+        if (visitor.OperandError && _options.UseTags)
         {
-            return IterateFilteredByTagsAtRuntime(filter, cancellationToken);
+            return IterateFilteredByTagsAtRuntime(filter, visitor.TagOnlyFilter, cancellationToken);
         }
 
         return IterateFilteredAtRuntime(filter, cancellationToken);
@@ -288,15 +288,18 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         }
     }
 
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredByTagsAtRuntime(Expression<Func<T, bool>> filter, [EnumeratorCancellation] CancellationToken cancellationToken)
+    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredByTagsAtRuntime(Expression<Func<T, bool>> filter, bool tagOnlyFilter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         if (!_options.UseTags)
         {
             throw new InvalidOperationException("Tags is disabled yet we ended up in a tags call");
         }
 
-        BlobTagQueryVisitor<T> visitor = new(_partitionKeyProxy, _rowKeyProxy);
-        LazyFilteringExpression<BlobTagAccessor> compiledFilter = (Expression<Func<BlobTagAccessor, bool>>)visitor.Visit(filter);
+        LazyFilteringExpression<T> originalCompiledFilter = filter;
+
+        BlobTagQueryVisitor<T> visitor = new(_partitionKeyProxy, _rowKeyProxy, _tags);
+        var visitedFilter = (Expression<Func<BlobTagAccessor, bool>>)visitor.Visit(filter);
+        LazyFilteringExpression<BlobTagAccessor> compiledFilter = visitedFilter;
 
         BlobContainerClient container = await _containerClient;
         await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
@@ -307,6 +310,16 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
             {
                 TClient client = GetClient(container, blob.Name);
                 LazyAsync<T?> entity = new(() => Download(client, cancellationToken));
+
+                if (!tagOnlyFilter)
+                {
+                    var entityResult = await entity;
+                    if (entityResult is null || !originalCompiledFilter.Invoke(entityResult))
+                    {
+                        continue;
+                    }
+                }
+
                 yield return (client, entity);
             }
         }
