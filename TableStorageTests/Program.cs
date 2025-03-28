@@ -1,12 +1,15 @@
 ﻿#pragma warning disable IDE0065 // Misplaced using directive
 #pragma warning disable CA1050 // Declare types in namespaces
 #pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable CS0162 // Unreachable code detected
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ProtoBuf;
 using System.Diagnostics;
 using System.Net;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TableStorage;
 using TableStorage.Linq;
 using TableStorage.Tests.Contexts;
@@ -23,14 +26,20 @@ ServiceCollection services = new();
 string? connectionString = config.GetConnectionString("Storage");
 ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
 
+#if PublishAot
+const bool create = false;
+#else
+const bool create = true;
+#endif
+
 services.AddMyTableContext(connectionString,
     configure: x =>
     {
-        x.CreateTableIfNotExists = true;
+        x.CreateTableIfNotExists = create;
     },
     configureBlobs: x =>
     {
-        x.CreateContainerIfNotExists = true;
+        x.CreateContainerIfNotExists = create;
         x.Serializer = new HybridSerializer();
     });
 ServiceProvider provider = services.BuildServiceProvider();
@@ -113,7 +122,9 @@ Debug.Assert(proxiedList?.Count > 0 && proxiedList.All(x => x.PrettyName == "roo
 int proxyWorksCount = await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow != "").CountAsync();
 Debug.Assert(proxyWorksCount == proxiedList.Count);
 
+#if !PublishAot
 var proxySelectionWorks = await context.Models1.Select(x => new { x.PrettyName, x.PrettyRow }).ToListAsync();
+#endif
 
 List<Model> list1 = await context.Models1.Where(x => x.PrettyName == "root").Where(x => x.MyProperty1 > 2).Take(3).ToListAsync();
 Debug.Assert(list1.Count <= 3 && list1.All(x => x.PrettyName != null && x.PrettyRow != null && x.MyProperty1 != 0 && x.MyProperty2 != null)); // Should not contain more than 3 items with all properties filled in
@@ -133,6 +144,7 @@ Debug.Assert(first2 != null && first2.PrettyName == null && first2.PrettyRow == 
 Model? first3 = await context.Models1.Where(x => x.PrettyName == "root").Where(x => x.MyProperty1 > 2).SelectFields(x => new TestTransformAndSelect(x.MyProperty1, x.MyProperty2)).FirstOrDefaultAsync();
 Debug.Assert(first3 != null && first3.PrettyName == null && first3.PrettyRow == null && first3.MyProperty1 != 0 && first3.MyProperty2 != null); // Should only fill in MyProperty1 and MyProperty2
 
+#if !PublishAot
 var firstTransformed1 = await context.Models1.Where(x => x.PrettyName == "root").Where(x => x.MyProperty1 > 2).Select(x => new { x.MyProperty2, x.MyProperty1 }).FirstOrDefaultAsync();
 Debug.Assert(firstTransformed1 != null && firstTransformed1.MyProperty1 != 0 && firstTransformed1.MyProperty2 != null); // Should return an anon type with only these two props
 
@@ -171,6 +183,7 @@ Debug.Assert(firstTransformed12?.All(x => x.Value != null) == true); // Should o
 
 List<StringFormatted2> firstTransformed13 = await context.Models1.Select(x => new StringFormatted2(string.Format("{0} - {1}, {2}_test {3}", new object[] { x.PrettyRow, x.MyProperty1 + (1 * 4), x.MyProperty2, x.Timestamp.GetValueOrDefault() }), null, x.Timestamp.GetValueOrDefault())).ToListAsync();
 Debug.Assert(firstTransformed13?.All(x => x.Value != null && x.OtherValue == null && x.TimeStamp != default) == true); // Should only get 4 props and transform into a string
+#endif
 
 TableSet<Model> unknown = context.GetTableSet<Model>("randomname");
 Debug.Assert(unknown != null); // Gives a tableset that wasn't defined on the original DbContext
@@ -220,13 +233,15 @@ await context.Models1.UpdateAsync(() => new()
     PrettyRow = mergeTest.PrettyRow,
     MyProperty1 = 5
 });
-Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).Select(x => x.MyProperty1).FirstAsync()) == 5);
+Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).AsAsyncEnumerable().Select(x => x.MyProperty1).FirstAsync()) == 5);
+
+#if !PublishAot
 int mergeCount = await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).BatchUpdateAsync(x => new()
 {
     MyProperty1 = x.MyProperty1 + 1
 });
 Debug.Assert(mergeCount == 1);
-Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).Select(x => x.MyProperty1).FirstAsync()) == 6);
+Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).AsAsyncEnumerable().Select(x => x.MyProperty1).FirstAsync()) == 6);
 mergeCount = await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).BatchUpdateTransactionAsync(x => new()
 {
     MyProperty1 = x.MyProperty1 - 1,
@@ -235,7 +250,8 @@ mergeCount = await context.Models1.Where(x => x.PrettyName == "root" && x.Pretty
 
 });
 Debug.Assert(mergeCount == 1);
-Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).Select(x => x.MyProperty1).FirstAsync()) == 5);
+Debug.Assert((await context.Models1.Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow).AsAsyncEnumerable().Select(x => x.MyProperty1).FirstAsync()) == 5);
+#endif
 
 await context.Models1.UpsertAsync(() => new()
 {
@@ -245,6 +261,7 @@ await context.Models1.UpsertAsync(() => new()
     MyProperty6 = ModelEnum.No
 });
 
+#if !PublishAot
 await context.Models4Blob.DeleteAllEntitiesAsync("root");
 
 string blobId1 = Guid.NewGuid().ToString("N");
@@ -294,6 +311,7 @@ Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "h
 blobResult1 = await context.Models4Blob.Where(x => x.PrettyPartition == "root" && x.PrettyRow == blobId2).ToListAsync();
 Debug.Assert(blobResult1.Count == 1);
 Debug.Assert(blobResult1[0].MyProperty1 == 2 && blobResult1[0].MyProperty2 == "hallo 2");
+#endif
 
 Model5 appendModel5 = new()
 {
@@ -370,6 +388,7 @@ await context.Models4Blob.AddEntityAsync(new()
     MyProperty2 = "hallo 3"
 });
 
+#if !PublishAot
 var blobSearch = await context.Models4Blob.Where(x => x.PrettyPartition == "root").ExistsIn(x => x.PrettyRow, ["pretty1", "pretty2", "pretty4"]).ToListAsync();
 
 Debug.Assert(blobSearch is not null);
@@ -400,6 +419,7 @@ Debug.Assert(blobSearch.Count is 1);
 Debug.Assert(blobSearch.All(x => x.PrettyPartition == "root"));
 Debug.Assert(blobSearch.All(x => x.PrettyRow == "pretty2"));
 Debug.Assert(blobSearch.All(x => x.MyProperty1 == 2));
+#endif
 
 #nullable disable
 namespace TableStorage.Tests.Models
@@ -494,7 +514,12 @@ namespace TableStorage.Tests.Contexts
         public BlobSet<Model4> Models4Blob { get; set; }
         public BlobSet<Model2> Models2Blob { get; }
         public AppendBlobSet<Model5> Models5Blob { get; }
+        public AppendBlobSet<Model5> Models5BlobInJson { get; }
     }
+
+    [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web, UseStringEnumConverter = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(Model5))]
+    public partial class ModelSerializationContext : JsonSerializerContext;
 }
 
 public record TestTransformAndSelectWithGuid(int prop1, string prop2, Guid id);
@@ -521,14 +546,16 @@ public static class Mapper
 
 public sealed class HybridSerializer : IBlobSerializer
 {
-    public async ValueTask<T> DeserializeAsync<T>(Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
+    public async ValueTask<T> DeserializeAsync<T>(string table, Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
     {
-        if (typeof(T) == typeof(Model4))
+#if !PublishAot
+        if (table is "Models4Blob")
         {
             return Serializer.Deserialize<T>(entity);
         }
+#endif
 
-        if (typeof(T) == typeof(Model5))
+        if (table is "Models5Blob")
         {
             using StreamReader reader = new(entity);
             string simple = await reader.ReadToEndAsync(cancellationToken);
@@ -554,23 +581,34 @@ public sealed class HybridSerializer : IBlobSerializer
             };
         }
 
+        if (table is "Models5BlobInJson")
+        {
+            return (T)(object) await JsonSerializer.DeserializeAsync(entity, ModelSerializationContext.Default.Model5, cancellationToken);
+        }
+
         BinaryData data = await BinaryData.FromStreamAsync(entity, cancellationToken);
         return data.ToObjectFromJson<T>();
     }
 
-    public BinaryData Serialize<T>(T entity) where T : IBlobEntity
+    public BinaryData Serialize<T>(string table, T entity) where T : IBlobEntity
     {
-        if (entity is Model4 model4)
+        if (table is "Models4Blob" && entity is Model4 model4)
         {
             using MemoryStream stream = new();
             Serializer.Serialize(stream, model4);
             return new(stream.ToArray());
         }
 
-        if (entity is Model5 model5)
+        if (table is "Models5Blob" && entity is Model5 model5)
         {
             string simple = $"{model5.Id}\\{model5.ContinuationToken}\\{string.Join("|", model5.Entries.Select(x => $"{x.Creation.ToUnixTimeSeconds()};{x.Duration}"))}";
             return BinaryData.FromString(simple);
+        }
+
+        if (table is "Models5BlobInJson" && entity is Model5 model5InJson)
+        {
+            byte[] data = JsonSerializer.SerializeToUtf8Bytes(model5InJson, ModelSerializationContext.Default.Model5);
+            return BinaryData.FromBytes(data);
         }
 
         return BinaryData.FromObjectAsJson(entity);

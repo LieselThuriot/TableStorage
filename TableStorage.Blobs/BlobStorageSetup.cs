@@ -44,9 +44,9 @@ public static class BlobStorageSetup
             DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingDefault
         };
 
-        public BinaryData Serialize<T>(T entity) where T : IBlobEntity => BinaryData.FromObjectAsJson(entity, _options);
+        public BinaryData Serialize<T>(string _, T entity) where T : IBlobEntity => BinaryData.FromObjectAsJson(entity, _options);
 
-        public async ValueTask<T?> DeserializeAsync<T>(Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
+        public async ValueTask<T?> DeserializeAsync<T>(string _, Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
         {
             BinaryData data = await BinaryData.FromStreamAsync(entity, cancellationToken);
             return data.ToObjectFromJson<T>(_options);

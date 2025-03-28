@@ -14,7 +14,7 @@ public sealed class BlobSet<T> : BaseBlobSet<T, BlobClient>
 
     protected override Task Upload(BlobClient blob, T entity, CancellationToken cancellationToken)
     {
-        BinaryData data = _options.Serializer.Serialize(entity);
+        BinaryData data = _options.Serializer.Serialize(Name, entity);
 
         BlobUploadOptions? options = null;
 

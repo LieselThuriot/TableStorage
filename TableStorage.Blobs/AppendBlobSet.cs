@@ -40,7 +40,7 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
 
     protected override async Task Upload(AppendBlobClient blob, T entity, CancellationToken cancellationToken)
     {
-        BinaryData data = _options.Serializer.Serialize(entity);
+        BinaryData data = _options.Serializer.Serialize(Name, entity);
 
         AppendBlobCreateOptions? options = null;
 

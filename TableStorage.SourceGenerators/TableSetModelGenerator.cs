@@ -1,8 +1,10 @@
 ﻿using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text;
 
 namespace TableStorage.SourceGenerators;
@@ -43,6 +45,16 @@ namespace TableStorage
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        IncrementalValueProvider<bool> publishAot = context
+            .AnalyzerConfigOptionsProvider
+            .Select((AnalyzerConfigOptionsProvider c, CancellationToken _) =>
+                c.GlobalOptions.TryGetValue("build_property.PublishAot", out string? publishAot) && bool.TryParse(publishAot, out bool parsedPublishAot) && parsedPublishAot);
+
+        IncrementalValueProvider<string?> tableStorageSerializerContext = context
+            .AnalyzerConfigOptionsProvider
+            .Select((AnalyzerConfigOptionsProvider c, CancellationToken _) =>
+                c.GlobalOptions.TryGetValue("build_property.TableStorageSerializerContext", out string? tableStorageSerializerContext) ? tableStorageSerializerContext : null);
+
         context.RegisterPostInitializationOutput(ctx => ctx.AddSource("TableSetAttributes.g.cs", SourceText.From(TableAttributes, Encoding.UTF8)));
 
         IncrementalValuesProvider<ClassDeclarationSyntax?> classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(predicate: static (s, _) => IsSyntaxTargetForGeneration(s), // select class with attributes
@@ -50,9 +62,9 @@ namespace TableStorage
                                                       .Where(static m => m is not null) // filter out attributed classes that we don't care about
                                                       ;
 
-        IncrementalValueProvider<(Compilation, ImmutableArray<ClassDeclarationSyntax>)> compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect())!;
-        context.RegisterSourceOutput(compilationAndClasses, static (spc, source) => Execute(source.Item1, source.Item2, spc));
+        IncrementalValueProvider<((Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classSyntax) compilationGroup, (bool publishAot, string? tableStorageSerializerContext) buildParams)> compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect()).Combine(publishAot.Combine(tableStorageSerializerContext))!;
 
+        context.RegisterSourceOutput(compilationAndClasses, static (spc, source) => Execute(source.compilationGroup.compilation, source.compilationGroup.classSyntax, source.buildParams.publishAot, source.buildParams.tableStorageSerializerContext, spc));
     }
 
     private static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
@@ -89,7 +101,7 @@ namespace TableStorage
         return null;
     }
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, SourceProductionContext context)
+    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, bool publishAot, string? tableStorageSerializerContext, SourceProductionContext context)
     {
         if (classes.IsDefaultOrEmpty)
         {
@@ -105,7 +117,7 @@ namespace TableStorage
         if (classesToGenerate.Count > 0)
         {
             // generate the source code and add it to the output
-            foreach ((string name, string modelResult) in GenerateTableContextClasses(classesToGenerate))
+            foreach ((string name, string modelResult) in GenerateTableContextClasses(classesToGenerate, publishAot, tableStorageSerializerContext))
             {
                 context.AddSource(name + ".g.cs", SourceText.From(modelResult, Encoding.UTF8));
             }
@@ -264,7 +276,7 @@ namespace TableStorage
         _ => type.TypeKind,
     };
 
-    public static IEnumerable<(string name, string result)> GenerateTableContextClasses(List<ClassToGenerate> classesToGenerate)
+    public static IEnumerable<(string name, string result)> GenerateTableContextClasses(List<ClassToGenerate> classesToGenerate, bool publishAot, string? tableStorageSerializerContext)
     {
         StringBuilder modelBuilder = new();
 
@@ -287,13 +299,13 @@ using System;
                 modelBuilder.AppendLine("using System.Text.Json;");
             }
 
-            GenerateModel(modelBuilder, classToGenerate);
+            GenerateModel(modelBuilder, classToGenerate, publishAot, tableStorageSerializerContext);
 
             yield return (classToGenerate.Namespace + "." + classToGenerate.Name, modelBuilder.ToString());
         }
     }
 
-    private static void GenerateModel(StringBuilder sb, ClassToGenerate classToGenerate)
+    private static void GenerateModel(StringBuilder sb, ClassToGenerate classToGenerate, bool publishAot, string? tableStorageSerializerContext)
     {
         bool hasChangeTracking = classToGenerate.Members.Any(x => x.WithChangeTracking);
         bool hasPartitionKeyProxy = classToGenerate.TryGetPrettyMember("PartitionKey", out PrettyMemberToGenerate partitionKeyProxy);
@@ -505,26 +517,26 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 {
 ");
 
-                foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.WithChangeTracking))
+            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.WithChangeTracking))
+            {
+                sb.Append("                    \"").Append(item.Name).Append("\" => ");
+
+                if (item.TypeKind == TypeKind.Enum)
                 {
-                    sb.Append("                    \"").Append(item.Name).Append("\" => ");
+                    sb.Append("(int");
 
-                    if (item.TypeKind == TypeKind.Enum)
+                    if (item.Type.EndsWith("?"))
                     {
-                        sb.Append("(int");
-
-                        if (item.Type.EndsWith("?"))
-                        {
-                            sb.Append('?');
-                        }
-
-                        sb.Append(") ");
+                        sb.Append('?');
                     }
 
-                    sb.Append(item.Name).AppendLine(", ");
+                    sb.Append(") ");
                 }
 
-                sb.Append(@"                    _ => throw new System.ArgumentException()
+                sb.Append(item.Name).AppendLine(", ");
+            }
+
+            sb.Append(@"                    _ => throw new System.ArgumentException()
                 };");
 
             sb.Append(@"
@@ -583,7 +595,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             sb.Append(@"
         [System.Runtime.Serialization.IgnoreDataMember] public ");
-            
+
             if (item.IsPartial)
             {
                 sb.Append("partial ");
@@ -608,7 +620,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                     sb.Append(@"
                 SetChanged(""").Append(item.Name).Append(@""");");
                 }
-                 
+
                 sb.Append(@"
             }
         }
@@ -690,10 +702,10 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                     case ""PartitionKey"": ").Append(realParitionKey).Append(@" = value?.ToString(); break;
                     case ""RowKey"": ").Append(realRowKey).Append(@" = value?.ToString(); break;
                     case ""Timestamp"": Timestamp = ");
-        
+
         if (classToGenerate.WithBlobSupport)
         {
-            sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.Deserialize<System.DateTimeOffset>() : (System.DateTimeOffset?)value)");
+            sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.GetDateTimeOffset() : (System.DateTimeOffset?)value)");
         }
         else
         {
@@ -719,7 +731,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 if (classToGenerate.WithBlobSupport)
                 {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.Deserialize<DateTimeOffset>() : (DateTimeOffset)value).DateTime");
+                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : (DateTimeOffset)value).DateTime");
                 }
                 else
                 {
@@ -730,7 +742,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 if (classToGenerate.WithBlobSupport)
                 {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.Deserialize<DateTimeOffset>() : value as DateTimeOffset?)?.DateTime");
+                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : value as DateTimeOffset?)?.DateTime");
                 }
                 else
                 {
@@ -741,7 +753,20 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 if (classToGenerate.WithBlobSupport)
                 {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.Deserialize<").Append(item.Type).Append(">() : ");
+                    sb.Append("value is System.Text.Json.JsonElement _")
+                      .Append(item.Name)
+                      .Append("JsonElement ? (Enum.TryParse(_")
+                      .Append(item.Name)
+                      .Append("JsonElement.ToString(), out ")
+                      .Append(item.Type.TrimEnd('?'))
+                      .Append(" _")
+                      .Append(item.Name)
+                      .Append("JsonElementParseResult) ? _")
+                      .Append(item.Name)
+                      .Append("JsonElementParseResult : default(")
+                      .Append(item.Type)
+                      .Append(")) : (");
+                    ;
                 }
 
                 sb.Append("value is int _").Append(item.Name).Append("Integer ? (").Append(item.Type).Append(") _").Append(item.Name).Append("Integer : ")
@@ -754,12 +779,72 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                   .Append("ParseResult : default(")
                   .Append(item.Type)
                   .Append("))");
+
+                if (classToGenerate.WithBlobSupport)
+                {
+                    sb.Append(')');
+                }
             }
             else
             {
                 if (classToGenerate.WithBlobSupport)
                 {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.Deserialize<").Append(item.Type).Append(">() : (").Append(item.Type).Append(") value)");
+                    string? deserializing = item.Type.ToLowerInvariant().TrimEnd('?') switch
+                    {
+                        "string" or "system.string" => "GetString(",
+                        "int" or "system.int32" => "GetInt32(",
+                        "long" or "system.int64" => "GetInt64(",
+                        "double" or "system.double" => "GetDouble(",
+                        "float" or "system.single" => "GetSingle(",
+                        "decimal" or "system.decimal" => "GetDecimal(",
+                        "bool" or "system.boolean" => "GetBoolean(",
+                        "system.guid" => "GetGuid(",
+                        "system.datetime" => "GetDateTime(",
+                        "system.datetimeoffset" => "GetDateTimeOffset(",
+                        "system.timespan" => "GetTimeSpan(",
+                        _ when !publishAot && string.IsNullOrEmpty(tableStorageSerializerContext) => "Deserialize<" + item.Type + ">(",
+                        _ => null
+                    };
+
+                    if (deserializing is null)
+                    {
+                        sb.Append(item.Type)
+                          .Append(") ");
+
+                        if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                        {
+                            sb.Append("( value is System.Text.Json.JsonElement _")
+                              .Append(item.Name)
+                              .Append($"JsonElement ? (")
+                              .Append(item.Type)
+                              .Append(") _")
+                              .Append(item.Name)
+                              .Append("JsonElement.Deserialize(")
+                              .Append(tableStorageSerializerContext)
+                              .Append(".Default.GetTypeInfo(typeof(")
+                              .Append(item.Type)
+                              .Append("))) : ");
+                        }
+
+                        sb.Append(" value");
+
+                        if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                        {
+                            sb.Append(')');
+                        }
+                    }
+                    else
+                    {
+                        sb.Append("value is System.Text.Json.JsonElement _")
+                          .Append(item.Name)
+                          .Append("JsonElement ? _")
+                          .Append(item.Name)
+                          .Append("JsonElement.")
+                          .Append(deserializing)
+                          .Append(") : (")
+                          .Append(item.Type)
+                          .Append(") value)");
+                    }
                 }
                 else
                 {
@@ -814,34 +899,34 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             sb.Append(item.Name).Append(", ");
         }
 
-//        if (hasChangeTracking)
-//        {
-//            sb.Append(@" .._changes.Select<string, object>(x => x switch
-//        {
-//");
+        //        if (hasChangeTracking)
+        //        {
+        //            sb.Append(@" .._changes.Select<string, object>(x => x switch
+        //        {
+        //");
 
-//            foreach (var item in classToGenerate.Members.Where(x => x.WithChangeTracking))
-//            {
-//                sb.Append("            \"").Append(item.Name).Append("\" => ");
+        //            foreach (var item in classToGenerate.Members.Where(x => x.WithChangeTracking))
+        //            {
+        //                sb.Append("            \"").Append(item.Name).Append("\" => ");
 
-//                if (item.TypeKind == TypeKind.Enum)
-//                {
-//                    sb.Append("(int");
+        //                if (item.TypeKind == TypeKind.Enum)
+        //                {
+        //                    sb.Append("(int");
 
-//                    if (item.Type.EndsWith("?"))
-//                    {
-//                        sb.Append('?');
-//                    }
+        //                    if (item.Type.EndsWith("?"))
+        //                    {
+        //                        sb.Append('?');
+        //                    }
 
-//                    sb.Append(") ");
-//                }
+        //                    sb.Append(") ");
+        //                }
 
-//                sb.Append(item.Name).AppendLine(", ");
-//            }
+        //                sb.Append(item.Name).AppendLine(", ");
+        //            }
 
-//            sb.Append(@"            _ => throw new System.ArgumentException()
-//        })");
-//        }
+        //            sb.Append(@"            _ => throw new System.ArgumentException()
+        //        })");
+        //        }
 
         sb.Append(@" ];
         public int Count => ").Append(4 + keysAndValuesToGenerate.Count);

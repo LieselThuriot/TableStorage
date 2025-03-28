@@ -187,7 +187,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     private async Task<T?> Download(TClient blob, CancellationToken cancellationToken)
     {
         using Stream stream = await blob.OpenReadAsync(cancellationToken: cancellationToken);
-        return await _options.Serializer.DeserializeAsync<T>(stream, cancellationToken);
+        return await _options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
     }
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => QueryAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
