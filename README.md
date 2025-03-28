@@ -199,3 +199,26 @@ public sealed class ProtoBufSerializer : IBlobSerializer
     }
 }
 ```
+
+For some specific cases, the source generator will have to generate a `.Deserialize` call using System.Text.Json.
+Since this is not supported when publishing with Native AOT, you can use the `TableStorageSerializerContext` property in your csproj file to set the fullname of a class that implements `JsonSerializerContext` to support native deserialization.
+
+```xml
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net9.0</TargetFramework>
+		<PublishAot>true</PublishAot>
+		<TableStorageSerializerContext>TableStorage.Tests.Contexts.ModelSerializationContext</TableStorageSerializerContext>
+	</PropertyGroup>
+</Project>
+```
+
+When configuring your context, you can also pass a `JsonSerializerContext` to the `BlobOptions` object to support native deserialization. Otherwise the default serialization will be used that relies on reflection.
+
+```csharp
+static void ConfigureBlobs(BlobOptions options)
+{
+    options.Serializer = new AotJsonBlobSerializer(MyJsonSerializerContext.Default);
+}
+```

@@ -1,4 +1,5 @@
 ﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 namespace TableStorage;
 
@@ -52,4 +53,18 @@ public static class BlobStorageSetup
             return data.ToObjectFromJson<T>(_options);
         }
     }
+}
+
+public sealed class AotJsonBlobSerializer(JsonSerializerContext context) : IBlobSerializer
+{
+    private readonly JsonSerializerContext _context = context;
+
+    public BinaryData Serialize<T>(string _, T entity) where T : IBlobEntity
+        => BinaryData.FromBytes(JsonSerializer.SerializeToUtf8Bytes(entity, GetTypeInfo<T>()));
+
+    public ValueTask<T?> DeserializeAsync<T>(string _, Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
+        => JsonSerializer.DeserializeAsync(entity, GetTypeInfo<T>(), cancellationToken);
+
+    private JsonTypeInfo<T> GetTypeInfo<T>()
+        => _context.GetTypeInfo(typeof(T)) as JsonTypeInfo<T> ?? throw new InvalidOperationException("No JsonTypeInfo for type " + typeof(T).FullName);
 }
