@@ -332,7 +332,7 @@ async Task AppendingTest()
     //if (await context.Models5Blob.ExistsAsync("root", "test"))
     try
     {
-        using Stream stream = BinaryData.FromString($"|{DateTimeOffset.UtcNow.ToUnixTimeSeconds()};{Random.Shared.Next(500, 2000)}").ToStream();
+        using Stream stream = BinaryData.FromString($"|{DateTimeOffset.UtcNow.AddSeconds(2).ToUnixTimeSeconds()};{Random.Shared.Next(500, 2000)}").ToStream();
         await context.Models5Blob.AppendAsync("root", "test", stream);
     }
     //else
@@ -361,6 +361,18 @@ Debug.Assert(appendedBlob2.Entries[0].Creation.ToUnixTimeSeconds() == appendedBl
 Debug.Assert(appendedBlob2.Entries[0].Duration == appendedBlob.Entries[0].Duration);
 Debug.Assert(appendedBlob2.Entries[1].Creation.ToUnixTimeSeconds() > appendedBlob.Entries[0].Creation.ToUnixTimeSeconds());
 Debug.Assert(appendedBlob2.Entries[1].Duration.HasValue);
+
+await context.Models5BlobInJson.DeleteAllEntitiesAsync("root");
+await context.Models5BlobInJson.AddEntityAsync(appendModel5);
+
+var jsonBlob = await context.Models5BlobInJson.Where(x => x.Id == "root" && x.ContinuationToken == "test").FirstOrDefaultAsync();
+Debug.Assert(jsonBlob is not null);
+Debug.Assert(jsonBlob.Id is "root");
+Debug.Assert(jsonBlob.ContinuationToken is "test");
+Debug.Assert(jsonBlob.Entries is not null);
+Debug.Assert(jsonBlob.Entries.Length is 1);
+Debug.Assert(jsonBlob.Entries[0].Creation == appendModel5.Entries[0].Creation);
+Debug.Assert(jsonBlob.Entries[0].Duration == appendModel5.Entries[0].Duration);
 
 await context.Models4Blob.DeleteAllEntitiesAsync("root");
 
@@ -487,7 +499,9 @@ namespace TableStorage.Tests.Models
     [TableSet(PartitionKey = "Id", RowKey = "ContinuationToken", SupportBlobs = true)]
     public partial class Model5
     {
-        public Model5Entry[] Entries { get; set; }
+        public partial string Id { get; set; }
+        public partial string ContinuationToken { get; set; }
+        public partial Model5Entry[] Entries { get; set; }
     }
 
     public sealed class Model5Entry
@@ -517,7 +531,9 @@ namespace TableStorage.Tests.Contexts
         public AppendBlobSet<Model5> Models5BlobInJson { get; }
     }
 
-    [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web, UseStringEnumConverter = true, DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web,
+        UseStringEnumConverter = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
     [JsonSerializable(typeof(Model5))]
     public partial class ModelSerializationContext : JsonSerializerContext;
 }
@@ -549,13 +565,13 @@ public sealed class HybridSerializer : IBlobSerializer
     public async ValueTask<T> DeserializeAsync<T>(string table, Stream entity, CancellationToken cancellationToken) where T : IBlobEntity
     {
 #if !PublishAot
-        if (table is "Models4Blob")
+        if (table is "models4blob")
         {
             return Serializer.Deserialize<T>(entity);
         }
 #endif
 
-        if (table is "Models5Blob")
+        if (table is "models5blob")
         {
             using StreamReader reader = new(entity);
             string simple = await reader.ReadToEndAsync(cancellationToken);
@@ -581,36 +597,36 @@ public sealed class HybridSerializer : IBlobSerializer
             };
         }
 
-        if (table is "Models5BlobInJson")
+        if (table is "models5blobinjson")
         {
             return (T)(object) await JsonSerializer.DeserializeAsync(entity, ModelSerializationContext.Default.Model5, cancellationToken);
         }
 
         BinaryData data = await BinaryData.FromStreamAsync(entity, cancellationToken);
-        return data.ToObjectFromJson<T>();
+        return data.ToObjectFromJson<T>(ModelSerializationContext.Default.Options);
     }
 
     public BinaryData Serialize<T>(string table, T entity) where T : IBlobEntity
     {
-        if (table is "Models4Blob" && entity is Model4 model4)
+        if (table is "models4blob" && entity is Model4 model4)
         {
             using MemoryStream stream = new();
             Serializer.Serialize(stream, model4);
             return new(stream.ToArray());
         }
 
-        if (table is "Models5Blob" && entity is Model5 model5)
+        if (table is "models5blob" && entity is Model5 model5)
         {
             string simple = $"{model5.Id}\\{model5.ContinuationToken}\\{string.Join("|", model5.Entries.Select(x => $"{x.Creation.ToUnixTimeSeconds()};{x.Duration}"))}";
             return BinaryData.FromString(simple);
         }
 
-        if (table is "Models5BlobInJson" && entity is Model5 model5InJson)
+        if (table is "models5blobinjson" && entity is Model5 model5InJson)
         {
             byte[] data = JsonSerializer.SerializeToUtf8Bytes(model5InJson, ModelSerializationContext.Default.Model5);
             return BinaryData.FromBytes(data);
         }
 
-        return BinaryData.FromObjectAsJson(entity);
+        return BinaryData.FromObjectAsJson(entity, ModelSerializationContext.Default.Options);
     }
 }

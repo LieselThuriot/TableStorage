@@ -63,4 +63,10 @@ public static class TableQueryHelper
     {
         return new TableSetQueryHelper<T>(table).SingleOrDefaultAsync(token);
     }
+
+    public static Task<T?> FindAsync<T>(this TableSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
+        where T : class, ITableEntity, new()
+    {
+        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+    }
 }

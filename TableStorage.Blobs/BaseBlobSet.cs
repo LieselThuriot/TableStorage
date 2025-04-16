@@ -40,6 +40,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     protected readonly string? _partitionKeyProxy;
     protected readonly string? _rowKeyProxy;
     protected readonly IReadOnlyCollection<string> _tags;
+
     private readonly LazyAsync<BlobContainerClient> _containerClient;
 
     internal BaseBlobSet(BlobStorageFactory factory, string tableName, BlobOptions options, string? partitionKeyProxy, string? rowKeyProxy, IReadOnlyCollection<string> tags)
@@ -186,7 +187,9 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     private async Task<T?> Download(TClient blob, CancellationToken cancellationToken)
     {
-        using Stream stream = await blob.OpenReadAsync(cancellationToken: cancellationToken);
+        using MemoryStream stream = new();
+        await blob.DownloadToAsync(stream, cancellationToken);
+        stream.Position = 0;
         return await _options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
     }
 

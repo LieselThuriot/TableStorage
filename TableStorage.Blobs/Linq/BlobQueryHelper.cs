@@ -54,6 +54,12 @@ public static class BlobSetQueryHelper
         return CreateHelper(table).SingleOrDefaultAsync(token);
     }
 
+    public static Task<T?> FindAsync<T>(this BlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
+        where T : IBlobEntity
+    {
+        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+    }
+
     public static IFilteredBlobQueryable<T> Where<T>(this AppendBlobSet<T> table, Expression<Func<T, bool>> predicate)
         where T : IBlobEntity
     {
@@ -94,5 +100,11 @@ public static class BlobSetQueryHelper
         where T : IBlobEntity
     {
         return CreateHelper(table).SingleOrDefaultAsync(token);
+    }
+
+    public static Task<T?> FindAsync<T>(this AppendBlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
+        where T : IBlobEntity
+    {
+        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
     }
 }

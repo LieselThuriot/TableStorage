@@ -72,6 +72,8 @@ public partial class Model
 }
 ```
 
+Important: If you plan on using the default STJ serialization, or plan on using the source generated `JsonSerializerContext`, you need to make sure that the properties you want to serialize are defined on your partial class definition. This includes your partition and rowkey. If you do not do this, STJ will not serialize them.
+
 Place your tables on your TableContext. The sample below will create 2 tables in table storage, named Models1 and Models2. It will also create a blob container named BlobModels1 which is a set for Block blobs. BlobModels2 is a set for Append blobs.
 
 ```csharp

@@ -1,4 +1,6 @@
-﻿using Azure.Storage.Blobs.Specialized;
+﻿using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Specialized;
+using System.Data.Common;
 using System.Linq.Expressions;
 using TableStorage.Visitors;
 
@@ -10,7 +12,7 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
     where T : IBlobEntity
     where TClient : BlobBaseClient
 {
-    private static readonly ParameterExpression s_parameter = Expression.Parameter(typeof(T), "x");
+    private ParameterExpression? _parameter;
 
     private readonly BaseBlobSet<T, TClient> _table = table;
     private Expression<Func<T, bool>>? _filter;
@@ -66,49 +68,36 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
     }
 
     public IFilteredBlobQueryable<T> ExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements)
-    {
-        Expression<Func<T, bool>> lambda = predicate.CreateExistsInFilter(elements);
-        return Where(lambda);
-    }
+        => Where(predicate.CreateExistsInFilter(elements));
 
     public IFilteredBlobQueryable<T> NotExistsIn<TElement>(Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements)
-    {
-        Expression<Func<T, bool>> lambda = predicate.CreateNotExistsInFilter(elements);
-        return Where(lambda);
-    }
+        => Where(predicate.CreateNotExistsInFilter(elements));
 
     public Task<T> FirstAsync(CancellationToken token)
-    {
-        return Helpers.FirstAsync(this, token);
-    }
+        => Helpers.FirstAsync(this, token);
 
     public Task<T?> FirstOrDefaultAsync(CancellationToken token)
-    {
-        return Helpers.FirstOrDefaultAsync(this, token);
-    }
+        => Helpers.FirstOrDefaultAsync(this, token);
 
     public Task<T> SingleAsync(CancellationToken token = default)
-    {
-        return Helpers.SingleAsync(this, token);
-    }
+        => Helpers.SingleAsync(this, token);
 
     public Task<T?> SingleOrDefaultAsync(CancellationToken token = default)
-    {
-        return Helpers.SingleOrDefaultAsync(this, token);
-    }
+        => Helpers.SingleOrDefaultAsync(this, token);
 
     public IFilteredBlobQueryable<T> Where(Expression<Func<T, bool>> predicate)
     {
-        ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], s_parameter);
-        predicate = predicateVisitor.VisitAndConvert(predicate, nameof(Where));
-
         if (_filter is null)
         {
             _filter = predicate;
+            _parameter = predicate.Parameters[0];
         }
         else
         {
-            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), s_parameter);
+            ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], _parameter!);
+            predicate = predicateVisitor.VisitAndConvert(predicate, nameof(Where));
+
+            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), _parameter);
         }
 
         return this;
