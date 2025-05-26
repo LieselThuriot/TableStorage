@@ -484,7 +484,7 @@ namespace TableStorage.Tests.Models
     }
 
 #nullable enable
-    [TableSet(PartitionKey = "PrettyPartition", RowKey = "PrettyRow", SupportBlobs = true, TrackChanges = true)]
+    [TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow), SupportBlobs = true, TrackChanges = true)]
     [ProtoContract(IgnoreListHandling = true)] // Important to ignore list handling because we are generating an IDictionary implementation that is not supported by protobuf
     public partial class Model4
     {

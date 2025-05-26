@@ -4,8 +4,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace TableStorage.SourceGenerators;
 
@@ -183,7 +183,7 @@ namespace TableStorage
             string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
             if (partitionKeyProxy is not null)
             {
-                prettyMembers.Add(new(partitionKeyProxy.Trim('"'), "PartitionKey"));
+                prettyMembers.Add(new(partitionKeyProxy, "PartitionKey"));
             }
             else
             {
@@ -193,7 +193,7 @@ namespace TableStorage
             string? rowKeyProxy = GetArgumentValue(tablesetAttribute, "RowKey");
             if (rowKeyProxy is not null)
             {
-                prettyMembers.Add(new(rowKeyProxy.Trim('"'), "RowKey"));
+                prettyMembers.Add(new(rowKeyProxy, "RowKey"));
             }
             else
             {
@@ -261,9 +261,16 @@ namespace TableStorage
 
     private static string? GetArgumentValue(AttributeSyntax tablesetAttribute, string name)
     {
-        return tablesetAttribute.ArgumentList?.Arguments.Where(x => x.NameEquals?.Name.NormalizeWhitespace().ToFullString() == name)
-                                                                                       .Select(x => x.Expression.NormalizeWhitespace().ToFullString())
-                                                                                       .FirstOrDefault();
+        string? result = tablesetAttribute.ArgumentList?.Arguments.Where(x => x.NameEquals?.Name.NormalizeWhitespace().ToFullString() == name)
+                                                                  .Select(x => x.Expression.NormalizeWhitespace().ToFullString())
+                                                                  .FirstOrDefault();
+
+        if (!string.IsNullOrEmpty(result))
+        {
+            result = Regex.Replace(result, @"nameof\s*\(\s*([^\s)]+)\s*\)", "$1").Trim('"');
+        }
+
+        return result;
     }
 
     private static TypeKind GetTypeKind(ITypeSymbol? type) => type switch

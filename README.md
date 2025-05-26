@@ -175,7 +175,7 @@ static void ConfigureBlobs(BlobOptions options)
     options.Serializer = new ProtoBufSerializer();
 }
 
-[TableSet(PartitionKey = "PrettyPartition", RowKey = "PrettyRow", SupportBlobs = true)]
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow), SupportBlobs = true)]
 [ProtoContract(IgnoreListHandling = true)] // Important to ignore list handling because we are generating an IDictionary implementation that is not supported by protobuf
 public partial class Model
 {

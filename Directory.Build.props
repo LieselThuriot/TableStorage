@@ -10,14 +10,14 @@
 		<RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
 		<AnalysisLevel>latest</AnalysisLevel>
-		<Company>Steven Thuriot</Company>
+		<Company>Liesel Thuriot</Company>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/StevenThuriot/TableStorage</RepositoryUrl>
-		<PackageProjectUrl>https://github.com/StevenThuriot/TableStorage</PackageProjectUrl>
-		<Copyright>Steven Thuriot</Copyright>
-		<Authors>Steven Thuriot</Authors>
-		<VersionPrefix>5.0.0</VersionPrefix>
-		<VersionSuffix>preview.7</VersionSuffix>
+		<RepositoryUrl>https://github.com/LieselThuriot/TableStorage</RepositoryUrl>
+		<PackageProjectUrl>https://github.com/LieselThuriot/TableStorage</PackageProjectUrl>
+		<Copyright>Liesel Thuriot</Copyright>
+		<Authors>Liesel Thuriot</Authors>
+		<VersionPrefix>5.0.1</VersionPrefix>
+		<!--<VersionSuffix>preview.7</VersionSuffix>-->
 	</PropertyGroup>
 
 	<!--<ItemGroup>
