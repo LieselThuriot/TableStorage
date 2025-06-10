@@ -26,6 +26,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" />
+		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" />
 		<ProjectReference Include="..\TableStorage\TableStorage.csproj" />
 		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>

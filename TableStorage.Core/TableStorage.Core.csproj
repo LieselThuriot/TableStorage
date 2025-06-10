@@ -1,0 +1,34 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<RootNamespace>TableStorage</RootNamespace>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>TableStorage.png</PackageIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\README.md" Link="README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		
+		<None Update="TableStorage.png">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+
+		<None Include="$(SolutionDir)\TableStorage.SourceGenerators\bin\$(Configuration)\$(TargetFramework)\TableStorage.SourceGenerators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="TableStorage.props" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="TableStorage" />
+		<InternalsVisibleTo Include="TableStorage.Blobs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FastExpressionCompiler" Version="[5.1.1,)" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[8.0.0,)" />
+	</ItemGroup>
+</Project>

@@ -21,28 +21,29 @@
 
 	<ItemGroup>
 		<PackageReference Include="AsyncFixer" Version="1.6.0">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Azure.Storage.Blobs" Version="[12.13.0,)" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[8.0.0,)" />
 		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.13.2">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Roslynator.Analyzers" Version="4.13.1">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="Roslynator.Formatting.Analyzers" Version="4.13.1">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
 		<PackageReference Include="System.Text.Json" Version="[8.0.5,)" />
 	</ItemGroup>
 
 	<ItemGroup>
-	  <ProjectReference Include="..\TableStorage\TableStorage.csproj" />
+		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[5.0,6)" />
+		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" PackageVersion="[5.0,6)" />
 	</ItemGroup>
 
 	<ItemGroup>

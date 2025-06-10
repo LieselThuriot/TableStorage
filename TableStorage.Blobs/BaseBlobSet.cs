@@ -53,10 +53,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         _containerClient = new(() => factory.GetClient(tableName));
     }
 
-    protected Task<TClient> GetClient(IBlobEntity entity)
-    {
-        return GetClient(entity.PartitionKey, entity.RowKey);
-    }
+    protected Task<TClient> GetClient(IBlobEntity entity) => GetClient(entity.PartitionKey, entity.RowKey);
 
     protected async Task<TClient> GetClient(string partitionKey, string rowKey)
     {
@@ -147,7 +144,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
         string prefix = partitionKey + '/';
 
-        await foreach (BlobHierarchyItem blob in container.GetBlobsByHierarchyAsync(BlobTraits.None, BlobStates.None, prefix: prefix, delimiter: "/", cancellationToken: cancellationToken))
+        await foreach (BlobHierarchyItem blob in container.GetBlobsByHierarchyAsync(BlobTraits.None, BlobStates.None, delimiter: "/", prefix: prefix, cancellationToken: cancellationToken))
         {
             TClient blobClient = GetClient(container, blob.Blob.Name);
             await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);

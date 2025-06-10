@@ -3,7 +3,7 @@ using System.Linq.Expressions;
 
 namespace TableStorage.Linq;
 
-internal class TransformedTableSetQueryHelper<T, TResult>(TableSetQueryHelper<T> tableSetQueryHelper, Expression<Func<T, TResult>> transform) : ITableEnumerable<TResult>
+internal sealed class TransformedTableSetQueryHelper<T, TResult>(TableSetQueryHelper<T> tableSetQueryHelper, Expression<Func<T, TResult>> transform) : ITableEnumerable<TResult>
     where T : class, ITableEntity, new()
 {
     private readonly TableSetQueryHelper<T> _helper = tableSetQueryHelper;

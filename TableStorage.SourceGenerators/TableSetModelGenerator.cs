@@ -173,8 +173,8 @@ namespace TableStorage
             // Get all the members in the class
             ImmutableArray<ISymbol> classMembers = classSymbol.GetMembers();
 
-            var members = new List<MemberToGenerate>(classMembers.Length);
-            var prettyMembers = new List<PrettyMemberToGenerate>(2);
+            List<MemberToGenerate> members = new(classMembers.Length);
+            List<PrettyMemberToGenerate> prettyMembers = new(2);
 
             AttributeSyntax tablesetAttribute = relevantSymbols.First(x => x.fullName == "TableStorage.TableSetAttribute").attributeSyntax;
             bool withChangeTracking = GetArgumentValue(tablesetAttribute, "TrackChanges") == "true";
@@ -869,11 +869,11 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         public ICollection<string> Keys => [ ""PartitionKey"", ""RowKey"", ""Timestamp"", ""odata.etag"", ");
 
-        IReadOnlyList<MemberToGenerate> keysAndValuesToGenerate = classToGenerate.Members;
+        List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey)];
 
         //if (hasChangeTracking)
         //{
-        //    keysAndValuesToGenerate = keysAndValuesToGenerate.Where(x => !x.WithChangeTracking).ToList();
+        //    keysAndValuesToGenerate = [ ..keysAndValuesToGenerate.Where(x => !x.WithChangeTracking);
         //}
 
         foreach (MemberToGenerate item in keysAndValuesToGenerate)
@@ -975,7 +975,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         public void Clear()
         {");
 
-        foreach (MemberToGenerate item in classToGenerate.Members)
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
         {
             sb.Append(@"
             ").Append(item.Name).Append(" = default(").Append(item.Type).Append(");");
@@ -1046,7 +1046,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             yield return new KeyValuePair<string, object>(""Timestamp"", Timestamp);
             yield return new KeyValuePair<string, object>(""odata.etag"", ETag.ToString());");
 
-        foreach (MemberToGenerate item in classToGenerate.Members)
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
         {
             sb.Append(@"
             yield return new KeyValuePair<string, object>(""").Append(item.Name).Append(@""", ");

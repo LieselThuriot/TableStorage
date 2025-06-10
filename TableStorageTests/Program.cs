@@ -509,6 +509,16 @@ namespace TableStorage.Tests.Models
         public DateTimeOffset Creation { get; set; }
         public long? Duration { get; set; }
     }
+
+    [TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+    public partial class TestModel
+    {
+        public partial string PrettyPartition { get; set; }
+        public partial string PrettyRow { get; set; }
+        public partial int MyProperty1 { get; set; }
+        public partial string MyProperty2 { get; set; }
+        public partial string MyNullableProperty2 { get; set; }
+    }
 }
 
 namespace TableStorage.Tests.Contexts
