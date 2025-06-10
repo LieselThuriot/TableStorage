@@ -16,8 +16,8 @@
 		<PackageProjectUrl>https://github.com/LieselThuriot/TableStorage</PackageProjectUrl>
 		<Copyright>Liesel Thuriot</Copyright>
 		<Authors>Liesel Thuriot</Authors>
-		<VersionPrefix>5.0.3</VersionPrefix>
-		<!--<VersionSuffix>preview.7</VersionSuffix>-->
+		<MajorMinorVersion>5.1</MajorMinorVersion>
+		<VersionSuffix>preview.1</VersionSuffix>
 	</PropertyGroup>
 
 	<!--<ItemGroup>

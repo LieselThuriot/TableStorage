@@ -13,7 +13,7 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
 {
     private ParameterExpression? _parameter;
 
-    private readonly TableSet<T> _table = table;
+    internal TableSet<T> Table { get; } = table;
 
     private HashSet<string>? _fields;
     private Expression<Func<T, bool>>? _filter;
@@ -52,7 +52,7 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
         while (await enumerator.MoveNextAsync())
         {
             T current = enumerator.Current;
-            await _table.DeleteEntityAsync(current.PartitionKey, current.RowKey, current.ETag, token);
+            await Table.DeleteEntityAsync(current.PartitionKey, current.RowKey, current.ETag, token);
             result++;
         }
 
@@ -73,118 +73,15 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
             entities.Add(new(TableTransactionActionType.Delete, current, current.ETag));
         }
 
-        await _table.SubmitTransactionAsync(entities, TransactionSafety.Enabled, token);
+        await Table.SubmitTransactionAsync(entities, TransactionSafety.Enabled, token);
         return entities.Count;
-    }
-
-    public async Task<int> BatchUpdateAsync(Expression<Func<T, T>> update, CancellationToken token = default)
-    {
-        (MergeVisitor visitor, LazyExpression<T> compiledUpdate) = PrepareExpression(update);
-
-        int result = 0;
-
-        await using IAsyncEnumerator<T> enumerator = GetAsyncEnumerator(token);
-
-        while (await enumerator.MoveNextAsync())
-        {
-            T current = enumerator.Current;
-            ITableEntity entity = PrepareEntity(visitor, compiledUpdate, current);
-            await _table.UpdateAsync(entity, token);
-
-            result++;
-        }
-
-        return result;
-    }
-
-    public async Task<int> BatchUpdateTransactionAsync(Expression<Func<T, T>> update, CancellationToken token)
-    {
-        (MergeVisitor visitor, LazyExpression<T> compiledUpdate) = PrepareExpression(update);
-
-        List<TableTransactionAction> entities = [];
-
-        await using IAsyncEnumerator<T> enumerator = GetAsyncEnumerator(token);
-
-        while (await enumerator.MoveNextAsync())
-        {
-            T current = enumerator.Current;
-            ITableEntity entity = PrepareEntity(visitor, compiledUpdate, current);
-            entities.Add(new(TableTransactionActionType.UpdateMerge, entity, current.ETag));
-        }
-
-        await _table.SubmitTransactionAsync(entities, TransactionSafety.Enabled, token);
-        return entities.Count;
-    }
-
-    private static ITableEntity PrepareEntity(MergeVisitor visitor, LazyExpression<T> compiledUpdate, T current)
-    {
-        TableEntity entity = new(visitor.Entity)
-        {
-            PartitionKey = current.PartitionKey,
-            RowKey = current.RowKey
-        };
-
-        if (visitor.IsComplex)
-        {
-            current = compiledUpdate.Invoke(current);
-
-            if (current is not IDictionary<string, object> currentEntity)
-            {
-                //throw new NotSupportedException("Complex entity must have an indexer");
-                return current;
-            }
-
-            foreach (string member in visitor.ComplexMembers)
-            {
-                entity[member] = currentEntity[member];
-            }
-        }
-
-        return entity;
-    }
-
-    private (MergeVisitor, LazyExpression<T>) PrepareExpression(Expression<Func<T, T>> update)
-    {
-        if (update is null)
-        {
-            throw new ArgumentNullException(nameof(update), "update action should not be null");
-        }
-
-        MergeVisitor visitor = new(_table.PartitionKeyProxy, _table.RowKeyProxy);
-        update = (Expression<Func<T, T>>)visitor.Visit(update);
-
-        if (!visitor.HasMerges)
-        {
-            throw new NotSupportedException("Expression is not supported");
-        }
-
-        if (visitor.Entity.PartitionKey is not null)
-        {
-            throw new NotSupportedException("PartitionKey is a readonly field");
-        }
-
-        if (visitor.Entity.RowKey is not null)
-        {
-            throw new NotSupportedException("RowKey is a readonly field");
-        }
-
-        if (!visitor.IsComplex)
-        {
-            _fields = [nameof(ITableEntity.PartitionKey), nameof(ITableEntity.RowKey)];
-        }
-        else if (_fields is not null)
-        {
-            throw new NotSupportedException("Data loss might occur when doing a select before an update");
-        }
-
-        return (visitor, update);
     }
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken)
     {
         IAsyncEnumerable<T> query = _filter is null
-                    ? _table.QueryAsync((string?)null, _amount, _fields, cancellationToken)
-                    : _table.QueryAsync(_filter, _amount, _fields, cancellationToken);
+                    ? Table.QueryAsync((string?)null, _amount, _fields, cancellationToken)
+                    : Table.QueryAsync(_filter, _amount, _fields, cancellationToken);
 
         if (_amount.HasValue)
         {
@@ -209,6 +106,20 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
     }
 
     #region Select
+    internal bool HasFields() => _fields is not null;
+
+    internal TableSetQueryHelper<T> SetFields(IEnumerable<string> fields)
+    {
+        if (_fields is not null)
+        {
+            throw new NotSupportedException("Only one transformation is allowed at a time");
+        }
+
+        _fields = [.. fields];
+
+        return this;
+    }
+
     internal TableSetQueryHelper<T> SetFields<TResult>(ref Expression<Func<T, TResult>> exp, bool throwIfNoArgumentsFound = true)
     {
         if (_fields is not null)
@@ -216,7 +127,7 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
             throw new NotSupportedException("Only one transformation is allowed at a time");
         }
 
-        SelectionVisitor visitor = new(_table.PartitionKeyProxy, _table.RowKeyProxy);
+        SelectionVisitor visitor = new(Table.PartitionKeyProxy, Table.RowKeyProxy);
         exp = (Expression<Func<T, TResult>>)visitor.Visit(exp);
 
         if (visitor.Members.Count == 0)
@@ -234,19 +145,10 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
         return this;
     }
 
-    internal TransformedTableSetQueryHelper<T, TResult> SetFieldsAndTransform<TResult>(Expression<Func<T, TResult>> exp)
-    {
-        TableSetQueryHelper<T> helper = SetFields(ref exp, throwIfNoArgumentsFound: false);
-        return new TransformedTableSetQueryHelper<T, TResult>(helper, exp);
-    }
-
     ISelectedTakenTableQueryable<T> ITakenTableQueryable<T>.SelectFields<TResult>(Expression<Func<T, TResult>> selector) => SetFields(ref selector);
 
     ISelectedTableQueryable<T> IFilteredTableQueryable<T>.SelectFields<TResult>(Expression<Func<T, TResult>> selector) => SetFields(ref selector);
 
-    ITableEnumerable<TResult> ITakenTableQueryable<T>.Select<TResult>(Expression<Func<T, TResult>> selector) => SetFieldsAndTransform(selector);
-
-    ITableEnumerable<TResult> IFilteredTableQueryable<T>.Select<TResult>(Expression<Func<T, TResult>> selector) => SetFieldsAndTransform(selector);
     #endregion Select
 
     #region Take
@@ -269,9 +171,9 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
     #region Where
     internal TableSetQueryHelper<T> AddFilter(Expression<Func<T, bool>> predicate)
     {
-        if (_table.PartitionKeyProxy is not null || _table.RowKeyProxy is not null)
+        if (Table.PartitionKeyProxy is not null || Table.RowKeyProxy is not null)
         {
-            WhereVisitor visitor = new(_table.PartitionKeyProxy, _table.RowKeyProxy, _table.Type);
+            WhereVisitor visitor = new(Table.PartitionKeyProxy, Table.RowKeyProxy, Table.Type);
             predicate = (Expression<Func<T, bool>>)visitor.Visit(predicate);
         }
 

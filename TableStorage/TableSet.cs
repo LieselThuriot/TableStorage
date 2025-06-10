@@ -181,43 +181,6 @@ public abstract class TableSet<T> : IStorageSet<T>
 
     #region Merge Operations
 
-    public Task UpdateAsync(Expression<Func<T>> exp, CancellationToken cancellationToken = default)
-    {
-        TableEntity entity = VisitForMergeAndValidate(exp);
-        return UpdateAsync(entity, cancellationToken);
-    }
-
-    public Task UpsertAsync(Expression<Func<T>> exp, CancellationToken cancellationToken = default)
-    {
-        TableEntity entity = VisitForMergeAndValidate(exp);
-        return UpsertAsync(entity, cancellationToken);
-    }
-
-    private TableEntity VisitForMergeAndValidate(Expression<Func<T>> exp)
-    {
-        MergeVisitor visitor = new(PartitionKeyProxy, RowKeyProxy);
-        _ = visitor.Visit(exp);
-
-        TableEntity entity = visitor.Entity;
-
-        if (entity.Count == 0 || visitor.IsComplex)
-        {
-            throw new NotSupportedException("Merge expression is not supported");
-        }
-
-        if (entity.PartitionKey is null)
-        {
-            throw new NotSupportedException("PartitionKey is a required field to be able to merge");
-        }
-
-        if (entity.RowKey is null)
-        {
-            throw new NotSupportedException("RowKey is a required field to be able to merge");
-        }
-
-        return entity;
-    }
-
     internal async Task UpdateAsync(ITableEntity entity, CancellationToken cancellationToken)
     {
         TableClient client = await LazyClient;

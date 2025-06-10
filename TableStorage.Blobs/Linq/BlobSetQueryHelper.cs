@@ -1,6 +1,4 @@
-﻿using Azure.Storage.Blobs.Models;
-using Azure.Storage.Blobs.Specialized;
-using System.Data.Common;
+﻿using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using TableStorage.Visitors;
 
@@ -14,20 +12,20 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
 {
     private ParameterExpression? _parameter;
 
-    private readonly BaseBlobSet<T, TClient> _table = table;
+    internal BaseBlobSet<T, TClient> Table { get; } = table;
     private Expression<Func<T, bool>>? _filter;
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default)
     {
         if (_filter is null)
         {
-            return _table.GetAsyncEnumerator(cancellationToken);
+            return Table.GetAsyncEnumerator(cancellationToken);
         }
 
         return Iterate();
         async IAsyncEnumerator<T> Iterate()
         {
-            await foreach ((TClient _, LazyAsync<T?> result) in _table.QueryInternalAsync(_filter, cancellationToken))
+            await foreach ((TClient _, LazyAsync<T?> result) in Table.QueryInternalAsync(_filter, cancellationToken))
             {
                 T? entity = await result;
 
@@ -43,24 +41,9 @@ internal sealed class BlobSetQueryHelper<T, TClient>(BaseBlobSet<T, TClient> tab
     {
         int count = 0;
 
-        await foreach ((TClient client, LazyAsync<T?> _) in _table.QueryInternalAsync(_filter, token))
+        await foreach ((TClient client, LazyAsync<T?> _) in Table.QueryInternalAsync(_filter, token))
         {
             await client.DeleteIfExistsAsync(cancellationToken: token);
-            count++;
-        }
-
-        return count;
-    }
-
-    public async Task<int> BatchUpdateAsync(Expression<Func<T, T>> update, CancellationToken token = default)
-    {
-        int count = 0;
-
-        LazyExpression<T> compiledUpdate = update;
-        await foreach (T? entity in this.WithCancellation(token))
-        {
-            T updatedEntity = compiledUpdate.Invoke(entity);
-            await _table.UpsertEntityAsync(updatedEntity, token);
             count++;
         }
 

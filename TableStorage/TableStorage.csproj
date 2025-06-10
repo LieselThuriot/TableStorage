@@ -4,6 +4,7 @@
 		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>TableStorage.png</PackageIcon>
+		<VersionPrefix>$(MajorMinorVersion).0</VersionPrefix>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -42,6 +43,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<InternalsVisibleTo Include="TableStorage.RuntimeCompilations" />
 		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[5.0,6)" />
 		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" PackageVersion="[5.0,6)" />
 		<Using Include="Azure" />

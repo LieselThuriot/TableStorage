@@ -5,6 +5,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>TableStorage.png</PackageIcon>
 		<RootNamespace>TableStorage</RootNamespace>
+		<VersionPrefix>$(MajorMinorVersion).0</VersionPrefix>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -47,6 +48,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<InternalsVisibleTo Include="TableStorage.Blobs.RuntimeCompilations" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Storage.Blobs" />
 		<Using Include="System.Text.Json" />

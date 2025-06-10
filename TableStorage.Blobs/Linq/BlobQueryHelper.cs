@@ -5,7 +5,7 @@ namespace TableStorage.Linq;
 
 public static class BlobSetQueryHelper
 {
-    private static BlobSetQueryHelper<T, TClient> CreateHelper<T, TClient>(BaseBlobSet<T, TClient> client)
+    internal static BlobSetQueryHelper<T, TClient> CreateHelper<T, TClient>(BaseBlobSet<T, TClient> client)
         where TClient : BlobBaseClient
         where T : IBlobEntity
     {

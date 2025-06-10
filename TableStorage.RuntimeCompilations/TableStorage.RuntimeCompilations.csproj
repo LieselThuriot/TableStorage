@@ -1,0 +1,33 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<GeneratePackageOnBuild>True</GeneratePackageOnBuild>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>TableStorage.png</PackageIcon>
+		<RootNamespace>TableStorage</RootNamespace>
+		<VersionPrefix>$(MajorMinorVersion).0</VersionPrefix>
+	</PropertyGroup>
+	
+	<ItemGroup>
+		<None Include="..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+		<None Update="TableStorage.png">
+			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="FastExpressionCompiler" Version="[5.1.1,)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[5.0,6)" />
+		<Using Include="Azure" />
+		<Using Include="Azure.Data.Tables" />
+	</ItemGroup>
+
+</Project>

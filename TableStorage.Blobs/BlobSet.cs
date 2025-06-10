@@ -10,15 +10,15 @@ public sealed class BlobSet<T> : BaseBlobSet<T, BlobClient>
     {
     }
 
-    protected override BlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetBlobClient(id);
+    protected internal override BlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetBlobClient(id);
 
     protected override Task Upload(BlobClient blob, T entity, CancellationToken cancellationToken)
     {
-        BinaryData data = _options.Serializer.Serialize(Name, entity);
+        BinaryData data = Options.Serializer.Serialize(Name, entity);
 
         BlobUploadOptions? options = null;
 
-        if (_options.UseTags)
+        if (Options.UseTags)
         {
             Dictionary<string, string> tags = CreateTags(entity);
 

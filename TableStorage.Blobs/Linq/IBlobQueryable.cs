@@ -14,7 +14,6 @@ public interface IBlobAsyncEnumerable<T> : IAsyncEnumerable<T>
     where T : IBlobEntity
 {
     public Task<int> BatchDeleteAsync(CancellationToken token = default);
-    public Task<int> BatchUpdateAsync(Expression<Func<T, T>> update, CancellationToken token = default);
 }
 
 public interface IFilteredBlobQueryable<T> : IBlobAsyncEnumerable<T>, ICanTakeOneBlobQueryable<T>

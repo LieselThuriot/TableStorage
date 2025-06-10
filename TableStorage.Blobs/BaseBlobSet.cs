@@ -36,20 +36,20 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     public Type Type => typeof(T);
     public string EntityType => Type.Name;
 
-    protected readonly BlobOptions _options;
-    protected readonly string? _partitionKeyProxy;
-    protected readonly string? _rowKeyProxy;
-    protected readonly IReadOnlyCollection<string> _tags;
+    protected internal BlobOptions Options { get; }
+    protected internal  string? PartitionKeyProxy { get; }
+    protected internal  string? RowKeyProxy { get; }
+    protected internal  IReadOnlyCollection<string> Tags { get; }
 
     private readonly LazyAsync<BlobContainerClient> _containerClient;
 
     internal BaseBlobSet(BlobStorageFactory factory, string tableName, BlobOptions options, string? partitionKeyProxy, string? rowKeyProxy, IReadOnlyCollection<string> tags)
     {
         Name = tableName;
-        _options = options;
-        _partitionKeyProxy = partitionKeyProxy;
-        _rowKeyProxy = rowKeyProxy;
-        _tags = tags;
+        Options = options;
+        PartitionKeyProxy = partitionKeyProxy;
+        RowKeyProxy = rowKeyProxy;
+        Tags = tags;
         _containerClient = new(() => factory.GetClient(tableName));
     }
 
@@ -62,7 +62,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         return GetClient(client, id);
     }
 
-    protected abstract TClient GetClient(BlobContainerClient containerClient, string id);
+    protected internal abstract TClient GetClient(BlobContainerClient containerClient, string id);
 
     public async Task<T?> GetEntityAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
     {
@@ -163,13 +163,13 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     protected Dictionary<string, string> CreateTags(T entity)
     {
-        Dictionary<string, string> tags = new(2 + _tags.Count)
+        Dictionary<string, string> tags = new(2 + Tags.Count)
         {
             [PartitionTagConstant] = entity.PartitionKey,
             [RowTagConstant] = entity.RowKey
         };
 
-        foreach (string tag in _tags)
+        foreach (string tag in Tags)
         {
             object? tagValue = entity[tag];
 
@@ -182,12 +182,12 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         return tags;
     }
 
-    private async Task<T?> Download(TClient blob, CancellationToken cancellationToken)
+    internal async Task<T?> Download(TClient blob, CancellationToken cancellationToken)
     {
         using MemoryStream stream = new();
         await blob.DownloadToAsync(stream, cancellationToken);
         stream.Position = 0;
-        return await _options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
+        return await Options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
     }
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => QueryAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
@@ -213,31 +213,10 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
             return IterateAllBlobs(cancellationToken);
         }
 
-        BlobQueryVisitor visitor = new(_partitionKeyProxy, _rowKeyProxy, _tags);
-        Expression<Func<T, bool>> visitedFilter = visitor.VisitAndConvert(filter, nameof(QueryInternalAsync));
-
-        if (!visitor.Error)
-        {
-            if (_options.UseTags)
-            {
-                if (visitor.SimpleFilter)
-                {
-                    return IterateBlobsByTag(visitor.Filter!, cancellationToken);
-                }
-
-                return IterateBlobsByTagAndComplexFilter(visitor.Filter!, filter, cancellationToken);
-            }
-        }
-
-        if (visitor.OperandError && _options.UseTags)
-        {
-            return IterateFilteredByTagsAtRuntime(filter, visitor.TagOnlyFilter, cancellationToken);
-        }
-
-        return IterateFilteredAtRuntime(filter, cancellationToken);
+        return Options.QueryHandlerFactory.QueryAsync(this, filter, cancellationToken);
     }
 
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateAllBlobs([EnumeratorCancellation] CancellationToken cancellationToken)
+    internal async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateAllBlobs([EnumeratorCancellation] CancellationToken cancellationToken)
     {
         BlobContainerClient container = await _containerClient;
 
@@ -248,9 +227,9 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         }
     }
 
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateBlobsByTag(string filter, [EnumeratorCancellation] CancellationToken cancellationToken)
+    internal async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateBlobsByTag(string filter, [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        if (!_options.UseTags)
+        if (!Options.UseTags)
         {
             throw new InvalidOperationException("Tags is disabled yet we ended up in a tags call");
         }
@@ -261,67 +240,6 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         {
             TClient client = GetClient(container, blob.BlobName);
             yield return (client, new(() => Download(client, cancellationToken)));
-        }
-    }
-
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateBlobsByTagAndComplexFilter(string filter, LazyFilteringExpression<T> compiledFilter, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach ((TClient client, LazyAsync<T?> entity) result in IterateBlobsByTag(filter, cancellationToken))
-        {
-            T? entity = await result.entity;
-            if (entity is not null && compiledFilter.Invoke(entity))
-            {
-                yield return result;
-            }
-        }
-    }
-
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredAtRuntime(LazyFilteringExpression<T> filter, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        await foreach ((TClient client, LazyAsync<T?> entity) result in IterateAllBlobs(cancellationToken))
-        {
-            T? entity = await result.entity;
-            if (entity is not null && filter.Invoke(entity))
-            {
-                yield return result;
-            }
-        }
-    }
-
-    private async IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> IterateFilteredByTagsAtRuntime(Expression<Func<T, bool>> filter, bool tagOnlyFilter, [EnumeratorCancellation] CancellationToken cancellationToken)
-    {
-        if (!_options.UseTags)
-        {
-            throw new InvalidOperationException("Tags is disabled yet we ended up in a tags call");
-        }
-
-        LazyFilteringExpression<T> originalCompiledFilter = filter;
-
-        BlobTagQueryVisitor<T> visitor = new(_partitionKeyProxy, _rowKeyProxy, _tags);
-        var visitedFilter = (Expression<Func<BlobTagAccessor, bool>>)visitor.Visit(filter);
-        LazyFilteringExpression<BlobTagAccessor> compiledFilter = visitedFilter;
-
-        BlobContainerClient container = await _containerClient;
-        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
-        {
-            BlobTagAccessor tags = new(blob.Tags);
-
-            if (compiledFilter.Invoke(tags))
-            {
-                TClient client = GetClient(container, blob.Name);
-                LazyAsync<T?> entity = new(() => Download(client, cancellationToken));
-
-                if (!tagOnlyFilter)
-                {
-                    var entityResult = await entity;
-                    if (entityResult is null || !originalCompiledFilter.Invoke(entityResult))
-                    {
-                        continue;
-                    }
-                }
-
-                yield return (client, entity);
-            }
         }
     }
 }

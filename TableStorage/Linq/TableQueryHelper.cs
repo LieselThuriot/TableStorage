@@ -4,12 +4,6 @@ namespace TableStorage.Linq;
 
 public static class TableQueryHelper
 {
-    public static ITableEnumerable<TResult> Select<T, TResult>(this TableSet<T> table, Expression<Func<T, TResult>> selector)
-        where T : class, ITableEntity, new()
-    {
-        return new TableSetQueryHelper<T>(table).SetFieldsAndTransform(selector);
-    }
-
     public static ISelectedTableQueryable<T> SelectFields<T, TResult>(this TableSet<T> table, Expression<Func<T, TResult>> selector)
         where T : class, ITableEntity, new()
     {

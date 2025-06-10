@@ -11,7 +11,7 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
     {
     }
 
-    protected override AppendBlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetAppendBlobClient(id);
+    protected internal override AppendBlobClient GetClient(BlobContainerClient containerClient, string id) => containerClient.GetAppendBlobClient(id);
 
     private static async Task AppendInternal(AppendBlobClient client, Stream stream, CancellationToken cancellationToken)
     {
@@ -40,11 +40,11 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
 
     protected override async Task Upload(AppendBlobClient blob, T entity, CancellationToken cancellationToken)
     {
-        BinaryData data = _options.Serializer.Serialize(Name, entity);
+        BinaryData data = Options.Serializer.Serialize(Name, entity);
 
         AppendBlobCreateOptions? options = null;
 
-        if (_options.UseTags)
+        if (Options.UseTags)
         {
             Dictionary<string, string> tags = CreateTags(entity);
 
