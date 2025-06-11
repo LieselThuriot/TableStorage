@@ -9,10 +9,6 @@
 	</PropertyGroup>
 	
 	<ItemGroup>
-		<None Include="..\README.md">
-			<Pack>True</Pack>
-			<PackagePath>\</PackagePath>
-		</None>
 		<None Update="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
@@ -22,7 +18,7 @@
 
 	<ItemGroup>
 		<PackageReference Include="FastExpressionCompiler" Version="[5.1.1,)" />
-		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" PackageVersion="[5.0,6)" />
+		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" PackageVersion="[5.1,6)" />
 	</ItemGroup>
 
 </Project>

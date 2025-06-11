@@ -9,10 +9,6 @@
 	</PropertyGroup>
 	
 	<ItemGroup>
-		<None Include="..\README.md">
-			<Pack>True</Pack>
-			<PackagePath>\</PackagePath>
-		</None>
 		<None Update="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
@@ -25,7 +21,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[5.0,6)" />
+		<ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[5.1,6)" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Data.Tables" />
 	</ItemGroup>

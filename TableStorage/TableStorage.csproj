@@ -44,8 +44,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="TableStorage.RuntimeCompilations" />
-		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[5.0,6)" />
-		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" PackageVersion="[5.0,6)" />
+		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[5.1,6)" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Data.Tables" />
 	</ItemGroup>
