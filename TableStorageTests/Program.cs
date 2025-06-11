@@ -41,6 +41,7 @@ services.AddMyTableContext(connectionString,
     {
         x.CreateContainerIfNotExists = create;
         x.Serializer = new HybridSerializer();
+        x.EnableCompilationAtRuntime();
     });
 ServiceProvider provider = services.BuildServiceProvider();
 
@@ -496,7 +497,7 @@ namespace TableStorage.Tests.Models
     }
 #nullable disable
 
-    [TableSet(PartitionKey = "Id", RowKey = "ContinuationToken", SupportBlobs = true)]
+    [TableSet(PartitionKey = "Id", RowKey = "ContinuationToken", SupportBlobs = true, DisableTables = true)]
     public partial class Model5
     {
         public partial string Id { get; set; }

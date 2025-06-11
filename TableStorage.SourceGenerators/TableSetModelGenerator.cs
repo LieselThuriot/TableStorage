@@ -22,6 +22,7 @@ namespace TableStorage
         public string PartitionKey { get; set; }
         public string RowKey { get; set; }
         public bool TrackChanges { get; set; }
+        public bool DisableTables { get; set; }
         public bool SupportBlobs { get; set; }
     }
 
@@ -177,8 +178,10 @@ namespace TableStorage
             List<PrettyMemberToGenerate> prettyMembers = new(2);
 
             AttributeSyntax tablesetAttribute = relevantSymbols.First(x => x.fullName == "TableStorage.TableSetAttribute").attributeSyntax;
-            bool withChangeTracking = GetArgumentValue(tablesetAttribute, "TrackChanges") == "true";
+
             bool withBlobSupport = GetArgumentValue(tablesetAttribute, "SupportBlobs") == "true";
+            bool withTablesSupport = GetArgumentValue(tablesetAttribute, "DisableTables") != "true";
+            bool withChangeTracking = withTablesSupport && GetArgumentValue(tablesetAttribute, "TrackChanges") == "true";
 
             string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
             if (partitionKeyProxy is not null)
@@ -253,7 +256,7 @@ namespace TableStorage
             }
 
             // Create an ClassToGenerate for use in the generation phase
-            classesToGenerate.Add(new(classSymbol.Name, classSymbol.ContainingNamespace.ToDisplayString(), members, prettyMembers, withBlobSupport));
+            classesToGenerate.Add(new(classSymbol.Name, classSymbol.ContainingNamespace.ToDisplayString(), members, prettyMembers, withBlobSupport, withTablesSupport));
         }
 
         return classesToGenerate;
@@ -329,55 +332,76 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         sb.Append(@"
     [System.Diagnostics.DebuggerDisplay(@""").Append(classToGenerate.Name).Append(@" \{ {").Append(realParitionKey).Append("}, {").Append(realRowKey).Append(@"} \}"")]
-    partial class ").Append(classToGenerate.Name).Append(@" : IDictionary<string, object>, Azure.Data.Tables.ITableEntity");
+    partial class ").Append(classToGenerate.Name);
 
-        if (hasChangeTracking)
+        if (classToGenerate.WithTablesSupport || classToGenerate.WithBlobSupport)
         {
-            sb.Append(", TableStorage.IChangeTracking");
+            sb.Append(" : ");
+        }
+
+        if (classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"IDictionary<string, object>, Azure.Data.Tables.ITableEntity");
+
+            if (hasChangeTracking)
+            {
+                sb.Append(", TableStorage.IChangeTracking");
+            }
         }
 
         if (classToGenerate.WithBlobSupport)
         {
-            sb.Append(", TableStorage.IBlobEntity");
+            if (classToGenerate.WithTablesSupport)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append("TableStorage.IBlobEntity");
         }
 
         sb.Append(@"
     {
+");
+
+        if (classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static TableSet<").Append(classToGenerate.Name).Append(@"> CreateTableSet(TableStorage.ICreator creator, string name)
         {
             return creator.CreateSet");
 
-        if (hasChangeTracking)
-        {
-            sb.Append("WithChangeTracking");
-        }
+            if (hasChangeTracking)
+            {
+                sb.Append("WithChangeTracking");
+            }
 
-        sb.Append('<').Append(classToGenerate.Name).Append(">(name, ");
+            sb.Append('<').Append(classToGenerate.Name).Append(">(name, ");
 
-        if (hasPartitionKeyProxy)
-        {
-            sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
-        }
-        else
-        {
-            sb.Append("null");
-        }
+            if (hasPartitionKeyProxy)
+            {
+                sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
+            }
+            else
+            {
+                sb.Append("null");
+            }
 
-        sb.Append(", ");
+            sb.Append(", ");
 
-        if (hasRowKeyProxy)
-        {
-            sb.Append('"').Append(rowKeyProxy.Name).Append('"');
-        }
-        else
-        {
-            sb.Append("null");
-        }
+            if (hasRowKeyProxy)
+            {
+                sb.Append('"').Append(rowKeyProxy.Name).Append('"');
+            }
+            else
+            {
+                sb.Append("null");
+            }
 
-        sb.Append(@");
+            sb.Append(@");
         }
 ");
+        }
 
         if (classToGenerate.WithBlobSupport)
         {
@@ -386,11 +410,21 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 sb.Append(@"
         string IBlobEntity.PartitionKey => ").Append(realParitionKey).Append(';');
             }
+            else if (!classToGenerate.WithTablesSupport)
+            {
+                sb.Append(@"
+        public string PartitionKey { get; set; }");
+            }
 
             if (hasRowKeyProxy)
             {
                 sb.Append(@"
         string IBlobEntity.RowKey => ").Append(realRowKey).Append(';');
+            }
+            else if (!classToGenerate.WithTablesSupport)
+            {
+                sb.Append(@"
+        public string RowKey { get; set; }");
             }
 
             sb.Append(@"
@@ -467,7 +501,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 ");
         }
 
-        if (hasChangeTracking)
+        if (classToGenerate.WithTablesSupport && hasChangeTracking)
         {
             sb.Append(@"
         private readonly HashSet<string> _changes = new HashSet<string>();
@@ -570,38 +604,47 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 ");
         }
 
-        sb.Append(@"
+        if (classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"
         ");
 
-        if (hasPartitionKeyProxy)
-        {
-            sb.Append("string Azure.Data.Tables.ITableEntity.PartitionKey { get => ").Append(partitionKeyProxy.Name).Append("; set => ").Append(partitionKeyProxy.Name).Append(" = value; }");
-        }
-        else
-        {
-            sb.Append("public string PartitionKey { get; set; }");
-        }
+            if (hasPartitionKeyProxy)
+            {
+                sb.Append("string Azure.Data.Tables.ITableEntity.PartitionKey { get => ").Append(partitionKeyProxy.Name).Append("; set => ").Append(partitionKeyProxy.Name).Append(" = value; }");
+            }
+            else
+            {
+                sb.Append("public string PartitionKey { get; set; }");
+            }
 
-        sb.Append(@"
+            sb.Append(@"
         ");
 
-        if (hasRowKeyProxy)
-        {
-            sb.Append("string Azure.Data.Tables.ITableEntity.RowKey { get => ").Append(rowKeyProxy.Name).Append("; set => ").Append(rowKeyProxy.Name).Append(" = value; }");
-        }
-        else
-        {
-            sb.Append("public string RowKey { get; set; }");
-        }
+            if (hasRowKeyProxy)
+            {
+                sb.Append("string Azure.Data.Tables.ITableEntity.RowKey { get => ").Append(rowKeyProxy.Name).Append("; set => ").Append(rowKeyProxy.Name).Append(" = value; }");
+            }
+            else
+            {
+                sb.Append("public string RowKey { get; set; }");
+            }
 
-        sb.Append(@"
+            sb.Append(@"
         public DateTimeOffset? Timestamp { get; set; }
         public Azure.ETag ETag { get; set; }");
+        }
 
         foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.GenerateProperty))
         {
+            if (classToGenerate.WithTablesSupport)
+            {
+                sb.Append(@"
+        [System.Runtime.Serialization.IgnoreDataMember]");
+            }
+         
             sb.Append(@"
-        [System.Runtime.Serialization.IgnoreDataMember] public ");
+        public ");
 
             if (item.IsPartial)
             {
@@ -644,8 +687,14 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             bool partial = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name);
             if (item.Proxy is "PartitionKey" or "RowKey")
             {
+                if (classToGenerate.WithTablesSupport)
+                {
+                    sb.Append(@"
+        [System.Runtime.Serialization.IgnoreDataMember]");
+                }
+
                 sb.Append(@"
-        [System.Runtime.Serialization.IgnoreDataMember] public ");
+        public ");
 
                 if (partial)
                 {
@@ -666,8 +715,14 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             }
             else
             {
+                if (classToGenerate.WithTablesSupport)
+                {
+                    sb.Append(@"
+        [System.Runtime.Serialization.IgnoreDataMember]");
+                }
+
                 sb.Append(@"
-        [System.Runtime.Serialization.IgnoreDataMember] public ");
+        public ");
 
                 if (partial)
                 {
@@ -687,9 +742,14 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 switch (key)
                 {
                     case ""PartitionKey"": return ").Append(realParitionKey).Append(@";
-                    case ""RowKey"": return ").Append(realRowKey).Append(@";
+                    case ""RowKey"": return ").Append(realRowKey).Append(';');
+
+        if (classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"
                     case ""Timestamp"": return Timestamp;
                     case ""odata.etag"": return ETag.ToString();");
+        }
 
         foreach (MemberToGenerate item in classToGenerate.Members)
         {
@@ -701,6 +761,15 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                     default: return null;
                 }
             }
+");
+
+        if (!classToGenerate.WithTablesSupport)
+        {
+            sb.AppendLine("        }");
+        }
+        else
+        {
+            sb.Append(@"
 
             set
             {
@@ -710,278 +779,278 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                     case ""RowKey"": ").Append(realRowKey).Append(@" = value?.ToString(); break;
                     case ""Timestamp"": Timestamp = ");
 
-        if (classToGenerate.WithBlobSupport)
-        {
-            sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.GetDateTimeOffset() : (System.DateTimeOffset?)value)");
-        }
-        else
-        {
-            sb.Append("(System.DateTimeOffset?)value");
-        }
-
-        sb.Append(@"; break;
-                    case ""odata.etag"": ETag = new Azure.ETag(value?.ToString()); break;");
-
-        foreach (MemberToGenerate item in classToGenerate.Members)
-        {
-            sb.Append(@"
-                    case """).Append(item.Name).Append(@""": ");
-
-            if (item.WithChangeTracking)
+            if (classToGenerate.WithBlobSupport)
             {
-                sb.Append('_');
-            }
-
-            sb.Append(item.Name).Append(" = (");
-
-            if (item.Type == typeof(DateTime).FullName)
-            {
-                if (classToGenerate.WithBlobSupport)
-                {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : (DateTimeOffset)value).DateTime");
-                }
-                else
-                {
-                    sb.Append("(DateTimeOffset)value).DateTime");
-                }
-            }
-            else if (item.Type == typeof(DateTime).FullName + "?")
-            {
-                if (classToGenerate.WithBlobSupport)
-                {
-                    sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : value as DateTimeOffset?)?.DateTime");
-                }
-                else
-                {
-                    sb.Append("value as DateTimeOffset?)?.DateTime");
-                }
-            }
-            else if (item.TypeKind == TypeKind.Enum)
-            {
-                if (classToGenerate.WithBlobSupport)
-                {
-                    sb.Append("value is System.Text.Json.JsonElement _")
-                      .Append(item.Name)
-                      .Append("JsonElement ? (Enum.TryParse(_")
-                      .Append(item.Name)
-                      .Append("JsonElement.ToString(), out ")
-                      .Append(item.Type.TrimEnd('?'))
-                      .Append(" _")
-                      .Append(item.Name)
-                      .Append("JsonElementParseResult) ? _")
-                      .Append(item.Name)
-                      .Append("JsonElementParseResult : default(")
-                      .Append(item.Type)
-                      .Append(")) : (");
-                    ;
-                }
-
-                sb.Append("value is int _").Append(item.Name).Append("Integer ? (").Append(item.Type).Append(") _").Append(item.Name).Append("Integer : ")
-                  .Append("Enum.TryParse(value?.ToString(), out ")
-                  .Append(item.Type.TrimEnd('?'))
-                  .Append(" _")
-                  .Append(item.Name)
-                  .Append("ParseResult) ? _")
-                  .Append(item.Name)
-                  .Append("ParseResult : default(")
-                  .Append(item.Type)
-                  .Append("))");
-
-                if (classToGenerate.WithBlobSupport)
-                {
-                    sb.Append(')');
-                }
+                sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.GetDateTimeOffset() : (System.DateTimeOffset?)value)");
             }
             else
             {
-                if (classToGenerate.WithBlobSupport)
+                sb.Append("(System.DateTimeOffset?)value");
+            }
+
+            sb.Append(@"; break;
+                    case ""odata.etag"": ETag = new Azure.ETag(value?.ToString()); break;");
+
+            foreach (MemberToGenerate item in classToGenerate.Members)
+            {
+                sb.Append(@"
+                    case """).Append(item.Name).Append(@""": ");
+
+                if (item.WithChangeTracking)
                 {
-                    string? deserializing = item.Type.ToLowerInvariant().TrimEnd('?') switch
-                    {
-                        "string" or "system.string" => "GetString(",
-                        "int" or "system.int32" => "GetInt32(",
-                        "long" or "system.int64" => "GetInt64(",
-                        "double" or "system.double" => "GetDouble(",
-                        "float" or "system.single" => "GetSingle(",
-                        "decimal" or "system.decimal" => "GetDecimal(",
-                        "bool" or "system.boolean" => "GetBoolean(",
-                        "system.guid" => "GetGuid(",
-                        "system.datetime" => "GetDateTime(",
-                        "system.datetimeoffset" => "GetDateTimeOffset(",
-                        "system.timespan" => "GetTimeSpan(",
-                        _ when !publishAot && string.IsNullOrEmpty(tableStorageSerializerContext) => "Deserialize<" + item.Type + ">(",
-                        _ => null
-                    };
+                    sb.Append('_');
+                }
 
-                    if (deserializing is null)
-                    {
-                        sb.Append(item.Type)
-                          .Append(") ");
+                sb.Append(item.Name).Append(" = (");
 
-                        if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                if (item.Type == typeof(DateTime).FullName)
+                {
+                    if (classToGenerate.WithBlobSupport)
+                    {
+                        sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : (DateTimeOffset)value).DateTime");
+                    }
+                    else
+                    {
+                        sb.Append("(DateTimeOffset)value).DateTime");
+                    }
+                }
+                else if (item.Type == typeof(DateTime).FullName + "?")
+                {
+                    if (classToGenerate.WithBlobSupport)
+                    {
+                        sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : value as DateTimeOffset?)?.DateTime");
+                    }
+                    else
+                    {
+                        sb.Append("value as DateTimeOffset?)?.DateTime");
+                    }
+                }
+                else if (item.TypeKind == TypeKind.Enum)
+                {
+                    if (classToGenerate.WithBlobSupport)
+                    {
+                        sb.Append("value is System.Text.Json.JsonElement _")
+                          .Append(item.Name)
+                          .Append("JsonElement ? (Enum.TryParse(_")
+                          .Append(item.Name)
+                          .Append("JsonElement.ToString(), out ")
+                          .Append(item.Type.TrimEnd('?'))
+                          .Append(" _")
+                          .Append(item.Name)
+                          .Append("JsonElementParseResult) ? _")
+                          .Append(item.Name)
+                          .Append("JsonElementParseResult : default(")
+                          .Append(item.Type)
+                          .Append(")) : (");
+                        ;
+                    }
+
+                    sb.Append("value is int _").Append(item.Name).Append("Integer ? (").Append(item.Type).Append(") _").Append(item.Name).Append("Integer : ")
+                      .Append("Enum.TryParse(value?.ToString(), out ")
+                      .Append(item.Type.TrimEnd('?'))
+                      .Append(" _")
+                      .Append(item.Name)
+                      .Append("ParseResult) ? _")
+                      .Append(item.Name)
+                      .Append("ParseResult : default(")
+                      .Append(item.Type)
+                      .Append("))");
+
+                    if (classToGenerate.WithBlobSupport)
+                    {
+                        sb.Append(')');
+                    }
+                }
+                else
+                {
+                    if (classToGenerate.WithBlobSupport)
+                    {
+                        string? deserializing = item.Type.ToLowerInvariant().TrimEnd('?') switch
                         {
-                            sb.Append("( value is System.Text.Json.JsonElement _")
-                              .Append(item.Name)
-                              .Append($"JsonElement ? (")
-                              .Append(item.Type)
-                              .Append(") _")
-                              .Append(item.Name)
-                              .Append("JsonElement.Deserialize(")
-                              .Append(tableStorageSerializerContext)
-                              .Append(".Default.GetTypeInfo(typeof(")
-                              .Append(item.Type)
-                              .Append("))) : ");
+                            "string" or "system.string" => "GetString(",
+                            "int" or "system.int32" => "GetInt32(",
+                            "long" or "system.int64" => "GetInt64(",
+                            "double" or "system.double" => "GetDouble(",
+                            "float" or "system.single" => "GetSingle(",
+                            "decimal" or "system.decimal" => "GetDecimal(",
+                            "bool" or "system.boolean" => "GetBoolean(",
+                            "system.guid" => "GetGuid(",
+                            "system.datetime" => "GetDateTime(",
+                            "system.datetimeoffset" => "GetDateTimeOffset(",
+                            "system.timespan" => "GetTimeSpan(",
+                            _ when !publishAot && string.IsNullOrEmpty(tableStorageSerializerContext) => "Deserialize<" + item.Type + ">(",
+                            _ => null
+                        };
+
+                        if (deserializing is null)
+                        {
+                            sb.Append(item.Type)
+                              .Append(") ");
+
+                            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                            {
+                                sb.Append("( value is System.Text.Json.JsonElement _")
+                                  .Append(item.Name)
+                                  .Append($"JsonElement ? (")
+                                  .Append(item.Type)
+                                  .Append(") _")
+                                  .Append(item.Name)
+                                  .Append("JsonElement.Deserialize(")
+                                  .Append(tableStorageSerializerContext)
+                                  .Append(".Default.GetTypeInfo(typeof(")
+                                  .Append(item.Type)
+                                  .Append("))) : ");
+                            }
+
+                            sb.Append(" value");
+
+                            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                            {
+                                sb.Append(')');
+                            }
                         }
-
-                        sb.Append(" value");
-
-                        if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+                        else
                         {
-                            sb.Append(')');
+                            sb.Append("value is System.Text.Json.JsonElement _")
+                              .Append(item.Name)
+                              .Append("JsonElement ? _")
+                              .Append(item.Name)
+                              .Append("JsonElement.")
+                              .Append(deserializing)
+                              .Append(") : (")
+                              .Append(item.Type)
+                              .Append(") value)");
                         }
                     }
                     else
                     {
-                        sb.Append("value is System.Text.Json.JsonElement _")
-                          .Append(item.Name)
-                          .Append("JsonElement ? _")
-                          .Append(item.Name)
-                          .Append("JsonElement.")
-                          .Append(deserializing)
-                          .Append(") : (")
-                          .Append(item.Type)
-                          .Append(") value)");
+                        sb.Append(item.Type).Append(") value");
                     }
                 }
-                else
-                {
-                    sb.Append(item.Type).Append(") value");
-                }
+
+                sb.Append("; break;");
             }
 
-            sb.Append("; break;");
-        }
-
-        sb.Append(@"
+            sb.Append(@"
                 }
             }
         }
 
         public ICollection<string> Keys => [ ""PartitionKey"", ""RowKey"", ""Timestamp"", ""odata.etag"", ");
 
-        List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey)];
+            List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey)];
 
-        //if (hasChangeTracking)
-        //{
-        //    keysAndValuesToGenerate = [ ..keysAndValuesToGenerate.Where(x => !x.WithChangeTracking);
-        //}
+            //if (hasChangeTracking)
+            //{
+            //    keysAndValuesToGenerate = [ ..keysAndValuesToGenerate.Where(x => !x.WithChangeTracking);
+            //}
 
-        foreach (MemberToGenerate item in keysAndValuesToGenerate)
-        {
-            sb.Append('"').Append(item.Name).Append(@""", ");
-        }
-
-        //if (hasChangeTracking)
-        //{
-        //    sb.Append(" .._changes");
-        //}
-
-        sb.Append(@" ];
-        public ICollection<object> Values => [ ").Append(realParitionKey).Append(", ").Append(realRowKey).Append(", Timestamp, ETag.ToString(), ");
-
-        foreach (MemberToGenerate item in keysAndValuesToGenerate)
-        {
-            if (item.TypeKind == TypeKind.Enum)
+            foreach (MemberToGenerate item in keysAndValuesToGenerate)
             {
-                sb.Append("(int");
-
-                if (item.Type.EndsWith("?"))
-                {
-                    sb.Append('?');
-                }
-
-                sb.Append(") ");
+                sb.Append('"').Append(item.Name).Append(@""", ");
             }
 
-            sb.Append(item.Name).Append(", ");
-        }
+            //if (hasChangeTracking)
+            //{
+            //    sb.Append(" .._changes");
+            //}
 
-        //        if (hasChangeTracking)
-        //        {
-        //            sb.Append(@" .._changes.Select<string, object>(x => x switch
-        //        {
-        //");
+            sb.Append(@" ];
+        public ICollection<object> Values => [ ").Append(realParitionKey).Append(", ").Append(realRowKey).Append(", Timestamp, ETag.ToString(), ");
 
-        //            foreach (var item in classToGenerate.Members.Where(x => x.WithChangeTracking))
-        //            {
-        //                sb.Append("            \"").Append(item.Name).Append("\" => ");
+            foreach (MemberToGenerate item in keysAndValuesToGenerate)
+            {
+                if (item.TypeKind == TypeKind.Enum)
+                {
+                    sb.Append("(int");
 
-        //                if (item.TypeKind == TypeKind.Enum)
-        //                {
-        //                    sb.Append("(int");
+                    if (item.Type.EndsWith("?"))
+                    {
+                        sb.Append('?');
+                    }
 
-        //                    if (item.Type.EndsWith("?"))
-        //                    {
-        //                        sb.Append('?');
-        //                    }
+                    sb.Append(") ");
+                }
 
-        //                    sb.Append(") ");
-        //                }
+                sb.Append(item.Name).Append(", ");
+            }
 
-        //                sb.Append(item.Name).AppendLine(", ");
-        //            }
+            //        if (hasChangeTracking)
+            //        {
+            //            sb.Append(@" .._changes.Select<string, object>(x => x switch
+            //        {
+            //");
 
-        //            sb.Append(@"            _ => throw new System.ArgumentException()
-        //        })");
-        //        }
+            //            foreach (var item in classToGenerate.Members.Where(x => x.WithChangeTracking))
+            //            {
+            //                sb.Append("            \"").Append(item.Name).Append("\" => ");
 
-        sb.Append(@" ];
+            //                if (item.TypeKind == TypeKind.Enum)
+            //                {
+            //                    sb.Append("(int");
+
+            //                    if (item.Type.EndsWith("?"))
+            //                    {
+            //                        sb.Append('?');
+            //                    }
+
+            //                    sb.Append(") ");
+            //                }
+
+            //                sb.Append(item.Name).AppendLine(", ");
+            //            }
+
+            //            sb.Append(@"            _ => throw new System.ArgumentException()
+            //        })");
+            //        }
+
+            sb.Append(@" ];
         public int Count => ").Append(4 + keysAndValuesToGenerate.Count);
 
-        //if (hasChangeTracking)
-        //{
-        //    sb.Append(" + _changes.Count");
-        //}
+            //if (hasChangeTracking)
+            //{
+            //    sb.Append(" + _changes.Count");
+            //}
 
-        sb.Append(@";
+            sb.Append(@";
         public bool IsReadOnly => false;
 
         public void Add(string key, object value)
         {
             this[key] = value;");
 
-        if (hasChangeTracking)
-        {
-            sb.Append(@"
+            if (hasChangeTracking)
+            {
+                sb.Append(@"
             SetChanged(key);");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
         }
 
         public void Add(KeyValuePair<string, object> item)
         {
             this[item.Key] = item.Value;");
 
-        if (hasChangeTracking)
-        {
-            sb.Append(@"
+            if (hasChangeTracking)
+            {
+                sb.Append(@"
             SetChanged(item.Key);");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
         }
 
         public void Clear()
         {");
 
-        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
-        {
-            sb.Append(@"
+            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
+            {
+                sb.Append(@"
             ").Append(item.Name).Append(" = default(").Append(item.Type).Append(");");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
         }
 
         public bool Contains(KeyValuePair<string, object> item)
@@ -1003,13 +1072,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 case ""Timestamp"":
                 case ""odata.etag"":");
 
-        foreach (MemberToGenerate item in classToGenerate.Members)
-        {
-            sb.Append(@"
+            foreach (MemberToGenerate item in classToGenerate.Members)
+            {
+                sb.Append(@"
                 case """).Append(item.Name).Append(@""": ");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
                     return true;
             
                 default: return false;
@@ -1046,27 +1115,27 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             yield return new KeyValuePair<string, object>(""Timestamp"", Timestamp);
             yield return new KeyValuePair<string, object>(""odata.etag"", ETag.ToString());");
 
-        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
-        {
-            sb.Append(@"
+            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
+            {
+                sb.Append(@"
             yield return new KeyValuePair<string, object>(""").Append(item.Name).Append(@""", ");
 
-            if (item.TypeKind == TypeKind.Enum)
-            {
-                sb.Append("(int");
-
-                if (item.Type.EndsWith("?"))
+                if (item.TypeKind == TypeKind.Enum)
                 {
-                    sb.Append('?');
+                    sb.Append("(int");
+
+                    if (item.Type.EndsWith("?"))
+                    {
+                        sb.Append('?');
+                    }
+
+                    sb.Append(')');
                 }
 
-                sb.Append(')');
+                sb.Append(item.Name).Append(");");
             }
 
-            sb.Append(item.Name).Append(");");
-        }
-
-        sb.Append(@"
+            sb.Append(@"
         }
 
         public bool Remove(string key)
@@ -1075,13 +1144,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 this[key] = null;");
 
-        if (hasChangeTracking)
-        {
-            sb.Append(@"
+            if (hasChangeTracking)
+            {
+                sb.Append(@"
                 SetChanged(key);");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
                 return true;
             }
 
@@ -1094,13 +1163,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 this[item.Key] = null;");
 
-        if (hasChangeTracking)
-        {
-            sb.Append(@"
+            if (hasChangeTracking)
+            {
+                sb.Append(@"
                 SetChanged(item.Key);");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
                 return true;
             }
 
@@ -1116,13 +1185,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 case ""Timestamp"": value = Timestamp; return true;
                 case ""odata.etag"": value = ETag; return true;");
 
-        foreach (MemberToGenerate item in classToGenerate.Members)
-        {
-            sb.Append(@"
+            foreach (MemberToGenerate item in classToGenerate.Members)
+            {
+                sb.Append(@"
                 case """).Append(item.Name).Append(@""": value = ").Append(item.Name).Append("; return true;");
-        }
+            }
 
-        sb.Append(@"
+            sb.Append(@"
                 default: value = null; return false;
             }
         }
@@ -1131,6 +1200,10 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             return this.GetEnumerator();
         }
+");
+        }
+
+        sb.Append(@"
     }
 ");
 

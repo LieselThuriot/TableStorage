@@ -168,32 +168,48 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@"
     public static class ").Append(classToGenerate.Name).Append(@"Extensions
     {
-        public static IServiceCollection Add").Append(classToGenerate.Name).Append(@"(this IServiceCollection services, string connectionString, Action<TableStorage.TableOptions> configure = null");
+        public static IServiceCollection Add").Append(classToGenerate.Name).Append(@"(this IServiceCollection services, string connectionString");
 
+        bool hasTableSets = classToGenerate.Members.Any(x => x.SetType is "TableSet");
         bool hasBlobSets = classToGenerate.Members.Any(x => x.SetType is "BlobSet" or "AppendBlobSet");
+
+        if (hasTableSets)
+        {
+            sb.Append(", Action<TableStorage.TableOptions> configure = null");
+        }
 
         if (hasBlobSets)
         {
             sb.Append(", Action<TableStorage.BlobOptions> configureBlobs = null");
         }
-        
+
         sb.Append(@")
         {
-            ").Append(classToGenerate.Name).Append(@".Register(services, connectionString, configure");
+            ").Append(classToGenerate.Name).Append(@".Register(services, connectionString");
+
+        if (hasTableSets)
+        {
+            sb.Append(", configure");
+        }
 
         if (hasBlobSets)
         {
             sb.Append(", configureBlobs");
         }
-        
+
         sb.Append(@");
             return services;
         }
     }
 
     partial class ").Append(classToGenerate.Name).Append(@"
-    {
+    {");
+
+        if (hasTableSets)
+        {
+            sb.Append(@"
         private TableStorage.ICreator _creator { get; init; }");
+        }
 
         if (hasBlobSets)
         {
@@ -225,7 +241,9 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         }");
         }
 
-        sb.Append(@"
+        if (hasTableSets)
+        {
+            sb.Append(@"
 
         public TableSet<T> GetTableSet<T>(string tableName)
             where T : class, Azure.Data.Tables.ITableEntity, new()
@@ -250,17 +268,35 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             return _creator.CreateSetWithChangeTracking<T>(tableName, partitionKeyProxy, rowKeyProxy);
         }
+");
+        }
 
-        private ").Append(classToGenerate.Name).Append(@"(TableStorage.ICreator creator");
+        sb.Append(@"
+        private ").Append(classToGenerate.Name).Append('(');
+
+        if (hasTableSets)
+        {
+            sb.Append("TableStorage.ICreator creator");
+        }
 
         if (hasBlobSets)
         {
-            sb.Append(@", TableStorage.IBlobCreator blobCreator");
+            if (hasTableSets)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append("TableStorage.IBlobCreator blobCreator");
         }
 
         sb.Append(@")
+        {");
+
+        if (hasTableSets)
         {
+            sb.Append(@"
             _creator = creator;");
+        }
 
         if (hasBlobSets)
         {
@@ -290,18 +326,28 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@"
         }
 
-        public static void Register(IServiceCollection services, string connectionString, Action<TableStorage.TableOptions> configure");
+        public static void Register(IServiceCollection services, string connectionString");
+
+        if (hasTableSets)
+        {
+            sb.Append(", Action<TableStorage.TableOptions> configure");
+        }
 
         if (hasBlobSets)
         {
             sb.Append(", Action<TableStorage.BlobOptions> configureBlobs");
         }
-        
+
         sb.Append(@")
         {
             services.AddSingleton(s =>
-            {
+            {");
+
+        if (hasTableSets)
+        {
+            sb.Append(@"
                 TableStorage.ICreator creator = TableStorage.TableStorageSetup.BuildCreator(connectionString, configure);");
+        }
 
         if (hasBlobSets)
         {
@@ -310,11 +356,21 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         }
 
         sb.Append(@"
-                return new ").Append(classToGenerate.Name).Append(@"(creator");
-        
+                return new ").Append(classToGenerate.Name).Append('(');
+
+        if (hasTableSets)
+        {
+            sb.Append("creator");
+        }
+
         if (hasBlobSets)
         {
-            sb.Append(@", blobCreator");
+            if (hasTableSets)
+            {
+                sb.Append(", ");
+            }
+
+            sb.Append("blobCreator");
         }
 
         sb.Append(@");

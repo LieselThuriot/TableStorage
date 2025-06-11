@@ -17,13 +17,14 @@ public readonly struct ContextMemberToGenerate(string name, string type, TypeKin
     public readonly string SetType = setType;
 }
 
-public readonly struct ClassToGenerate(string name, string @namespace, List<MemberToGenerate> members, List<PrettyMemberToGenerate> prettyMembers, bool withBlobSupport)
+public readonly struct ClassToGenerate(string name, string @namespace, List<MemberToGenerate> members, List<PrettyMemberToGenerate> prettyMembers, bool withBlobSupport, bool withTablesSupport)
 {
     public readonly string Name = name;
     public readonly string Namespace = @namespace;
     public readonly List<MemberToGenerate> Members = members;
     public readonly List<PrettyMemberToGenerate> PrettyMembers = prettyMembers;
     public readonly bool WithBlobSupport = withBlobSupport;
+    public readonly bool WithTablesSupport = withTablesSupport;
 
     public bool TryGetPrettyMember(string proxy, out PrettyMemberToGenerate prettyMemberToGenerate)
     {
