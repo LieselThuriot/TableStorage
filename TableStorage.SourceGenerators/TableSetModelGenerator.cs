@@ -54,59 +54,56 @@ namespace TableStorage
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        IncrementalValueProvider<bool> publishAot = context
-            .AnalyzerConfigOptionsProvider
-            .Select(static (AnalyzerConfigOptionsProvider c, CancellationToken _) =>
-                c.GlobalOptions.TryGetValue("build_property.PublishAot", out string? publishAot) && bool.TryParse(publishAot, out bool parsedPublishAot) && parsedPublishAot);
-
-        IncrementalValueProvider<string?> tableStorageSerializerContext = context
-            .AnalyzerConfigOptionsProvider
-            .Select(static (AnalyzerConfigOptionsProvider c, CancellationToken _) =>
-                c.GlobalOptions.TryGetValue("build_property.TableStorageSerializerContext", out string? tableStorageSerializerContext) ? tableStorageSerializerContext : null);
-
         context.RegisterPostInitializationOutput(static ctx => ctx.AddSource("TableSetAttributes.g.cs", SourceText.From(TableAttributes, Encoding.UTF8)));
 
+        IncrementalValueProvider<bool> publishAotProvider = context.AnalyzerConfigOptionsProvider
+            .Select(static (optionsProvider, _) => GetPublishAotProperty(optionsProvider));
+
+        IncrementalValueProvider<string?> tableStorageSerializerContextProvider = context.AnalyzerConfigOptionsProvider
+            .Select(static (optionsProvider, _) => GetTableStorageSerializerContextProperty(optionsProvider));
+
         IncrementalValuesProvider<ClassDeclarationSyntax> classDeclarations = context.SyntaxProvider
-               .ForAttributeWithMetadataName(
-                    "TableStorage.TableSetAttribute",
-                    predicate: static (node, _) => node is ClassDeclarationSyntax,
-                    transform: static (ctx, _) => (ClassDeclarationSyntax) ctx.TargetNode
-               );
+            .ForAttributeWithMetadataName(
+                "TableStorage.TableSetAttribute",
+                predicate: static (node, _) => node is ClassDeclarationSyntax classSyntax && classSyntax.AttributeLists.Count > 0,
+                transform: static (context, _) => (ClassDeclarationSyntax)context.TargetNode)
+            .WithTrackingName("TableSetAttributeClasses");
 
-        IncrementalValueProvider<((Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classSyntax) compilationGroup, (bool publishAot, string? tableStorageSerializerContext) buildParams)> compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect()).Combine(publishAot.Combine(tableStorageSerializerContext))!;
+        IncrementalValueProvider<(Compilation Compilation, ImmutableArray<ClassDeclarationSyntax> Classes)> compilationAndClasses =
+            context.CompilationProvider.Combine(classDeclarations.Collect());
 
-        context.RegisterSourceOutput(compilationAndClasses, static (spc, source) => Execute(source.compilationGroup.compilation, source.compilationGroup.classSyntax, source.buildParams.publishAot, source.buildParams.tableStorageSerializerContext, spc));
+        IncrementalValueProvider<((Compilation Compilation, ImmutableArray<ClassDeclarationSyntax> Classes) Left, (bool PublishAot, string? TableStorageSerializerContext) Right)> combinedProviders =
+            compilationAndClasses.Combine(publishAotProvider.Combine(tableStorageSerializerContextProvider));
+
+        context.RegisterSourceOutput(combinedProviders,
+            static (spc, source) => Execute(
+                source.Left.Compilation,
+                source.Left.Classes,
+                source.Right.PublishAot,
+                source.Right.TableStorageSerializerContext,
+                spc));
     }
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, bool publishAot, string? tableStorageSerializerContext, SourceProductionContext context)
+    private static bool GetPublishAotProperty(AnalyzerConfigOptionsProvider optionsProvider)
     {
-        bool hasTables = false, hasBlobs = false;
-        foreach (AssemblyIdentity referencedAssembly in compilation.ReferencedAssemblyNames)
-        {
-            switch (referencedAssembly.Name)
-            {
-                case "TableStorage":
-                    hasTables = true;
+        return optionsProvider.GlobalOptions.TryGetValue("build_property.PublishAot", out string? publishAotValue) &&
+               bool.TryParse(publishAotValue, out bool parsedPublishAot) &&
+               parsedPublishAot;
+    }
 
-                    if (hasBlobs)
-                    {
-                        break;
-                    }
+    private static string? GetTableStorageSerializerContextProperty(AnalyzerConfigOptionsProvider optionsProvider)
+    {
+        return optionsProvider.GlobalOptions.TryGetValue("build_property.TableStorageSerializerContext", out string? serializerContextValue)
+            ? serializerContextValue
+            : null;
+    }
 
-                    break;
-                case "TableStorage.Blobs":
-                    hasBlobs = true;
+    private static bool AreRequiredAssembliesReferenced(Compilation compilation, SourceProductionContext context)
+    {
+        bool hasTableStorage = compilation.ReferencedAssemblyNames.Any(asm => asm.Name == "TableStorage");
+        bool hasTableStorageBlobs = compilation.ReferencedAssemblyNames.Any(asm => asm.Name == "TableStorage.Blobs");
 
-                    if (hasTables)
-                    {
-                        break;
-                    }
-
-                    break;
-            }
-        }
-
-        if (!hasTables && !hasBlobs)
+        if (!hasTableStorage && !hasTableStorageBlobs)
         {
             var descriptor = new DiagnosticDescriptor(
                 id: "TSG001",
@@ -116,8 +113,17 @@ namespace TableStorage
                 DiagnosticSeverity.Error,
                 isEnabledByDefault: true
             );
-
             context.ReportDiagnostic(Diagnostic.Create(descriptor, Location.None));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, bool publishAot, string? tableStorageSerializerContext, SourceProductionContext context)
+    {
+        if (!AreRequiredAssembliesReferenced(compilation, context))
+        {
             return;
         }
 
@@ -142,131 +148,189 @@ namespace TableStorage
         }
     }
 
+    private static ClassToGenerate? ProcessClassDeclaration(Compilation compilation, ClassDeclarationSyntax classDeclarationSyntax, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+
+        SemanticModel semanticModel = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree);
+        if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax, cancellationToken: ct) is not INamedTypeSymbol classSymbol)
+        {
+            return null; // something went wrong, bail out
+        }
+
+        var relevantAttributes = GetRelevantAttributes(classDeclarationSyntax, semanticModel, ct);
+        AttributeSyntax? tableSetAttributeSyntax = relevantAttributes.FirstOrDefault(attr => attr.fullName == "TableStorage.TableSetAttribute").attributeSyntax;
+
+        if (tableSetAttributeSyntax == null)
+        {
+            // This should not happen if ForAttributeWithMetadataName is working correctly,
+            // but as a safeguard or if the attribute is malformed.
+            return null;
+        }
+
+        var (partitionKeyProxy, rowKeyProxy, prettyMembers) = ProcessTableSetAttributeArguments(tableSetAttributeSyntax);
+        bool withBlobSupport = GetArgumentValue(tableSetAttributeSyntax, "SupportBlobs") == "true";
+        bool withTablesSupport = GetArgumentValue(tableSetAttributeSyntax, "DisableTables") != "true";
+        bool withChangeTracking = withTablesSupport && GetArgumentValue(tableSetAttributeSyntax, "TrackChanges") == "true";
+
+        List<MemberToGenerate> members = ProcessClassMembers(classSymbol, prettyMembers, withChangeTracking, partitionKeyProxy ?? "null", rowKeyProxy ?? "null", ct);
+        ProcessTableSetPropertyAttributes(relevantAttributes, semanticModel, members, withChangeTracking, partitionKeyProxy ?? "null", rowKeyProxy ?? "null", ct);
+
+        return new ClassToGenerate(classSymbol.Name, classSymbol.ContainingNamespace.ToDisplayString(), members, prettyMembers, withBlobSupport, withTablesSupport);
+    }
+
+    private static List<(string fullName, AttributeSyntax attributeSyntax)> GetRelevantAttributes(ClassDeclarationSyntax classDeclarationSyntax, SemanticModel semanticModel, CancellationToken ct)
+    {
+        List<(string fullName, AttributeSyntax attributeSyntax)> relevantSymbols = [];
+        foreach (AttributeListSyntax attributeListSyntax in classDeclarationSyntax.AttributeLists)
+        {
+            foreach (AttributeSyntax attributeSyntax in attributeListSyntax.Attributes)
+            {
+                ct.ThrowIfCancellationRequested();
+                if (semanticModel.GetSymbolInfo(attributeSyntax, cancellationToken: ct).Symbol is not IMethodSymbol attributeSymbol)
+                {
+                    continue; // weird, we couldn't get the symbol, ignore it
+                }
+
+                INamedTypeSymbol attributeContainingTypeSymbol = attributeSymbol.ContainingType;
+                string fullName = attributeContainingTypeSymbol.ToDisplayString();
+
+                if (fullName.StartsWith("TableStorage."))
+                {
+                    relevantSymbols.Add((fullName, attributeSyntax));
+                }
+            }
+        }
+
+        return relevantSymbols;
+    }
+
+    private static (string? PartitionKeyProxy, string? RowKeyProxy, List<PrettyMemberToGenerate> PrettyMembers) ProcessTableSetAttributeArguments(AttributeSyntax tablesetAttribute)
+    {
+        List<PrettyMemberToGenerate> prettyMembers = new(2);
+        string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
+        if (partitionKeyProxy != null)
+        {
+            prettyMembers.Add(new(partitionKeyProxy, "PartitionKey"));
+        }
+
+        string? rowKeyProxy = GetArgumentValue(tablesetAttribute, "RowKey");
+        if (rowKeyProxy != null)
+        {
+            prettyMembers.Add(new(rowKeyProxy, "RowKey"));
+        }
+
+        return (partitionKeyProxy, rowKeyProxy, prettyMembers);
+    }
+
+    private static List<MemberToGenerate> ProcessClassMembers(INamedTypeSymbol classSymbol, List<PrettyMemberToGenerate> prettyMembers, bool withChangeTracking, string partitionKeyForNewMembers, string rowKeyForNewMembers, CancellationToken ct)
+    {
+        ImmutableArray<ISymbol> classMembersSymbols = classSymbol.GetMembers();
+        List<MemberToGenerate> members = new(classMembersSymbols.Length);
+
+        foreach (ISymbol memberSymbol in classMembersSymbols)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (memberSymbol is IPropertySymbol property)
+            {
+                switch (property.Name)
+                {
+                    case "PartitionKey":
+                    case "RowKey":
+                    case "Timestamp":
+                    case "ETag":
+                    case "this[]": // Indexer
+                    case "Keys":   // From IDictionary
+                    case "Values": // From IDictionary
+                    case "Count":  // From IDictionary
+                    case "IsReadOnly": // From IDictionary
+                        break;
+
+                    default:
+                        ITypeSymbol type = property.Type;
+                        TypeKind typeKind = GetTypeKind(type);
+                        bool tagBlob = property.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString() == "TableStorage.TagAttribute");
+                        bool generate = property.IsPartialDefinition && !prettyMembers.Any(x => x.Name == property.Name);
+
+                        members.Add(new MemberToGenerate(
+                            name: property.Name,
+                            type: type.ToDisplayString(),
+                            typeKind: typeKind,
+                            generateProperty: generate,
+                            partitionKeyProxy: partitionKeyForNewMembers, // Proxies are for TableSetPropertyAttribute, not existing properties
+                            rowKeyProxy: rowKeyForNewMembers,       // Proxies are for TableSetPropertyAttribute, not existing properties
+                            withChangeTracking: withChangeTracking,
+                            isPartial: property.IsPartialDefinition,
+                            tagBlob: tagBlob
+                        ));
+                        break;
+                }
+            }
+        }
+
+        return members;
+    }
+
+    private static void ProcessTableSetPropertyAttributes(
+        List<(string fullName, AttributeSyntax attributeSyntax)> relevantAttributes,
+        SemanticModel semanticModel,
+        List<MemberToGenerate> members,
+        bool withChangeTracking,
+        string partitionKeyProxy,
+        string rowKeyProxy,
+        CancellationToken ct)
+    {
+        foreach ((string attrFullName, AttributeSyntax tableSetPropertyAttribute) in relevantAttributes.Where(x => x.fullName == "TableStorage.TableSetPropertyAttribute"))
+        {
+            ct.ThrowIfCancellationRequested();
+            if (tableSetPropertyAttribute.ArgumentList == null || tableSetPropertyAttribute.ArgumentList.Arguments.Count < 2)
+            {
+                continue;
+            }
+
+            var nameSyntax = tableSetPropertyAttribute.ArgumentList.Arguments[1].Expression as LiteralExpressionSyntax;
+            string name = nameSyntax?.Token.ValueText ?? string.Empty;
+            if (string.IsNullOrEmpty(name))
+            {
+                continue;
+            }
+
+            if (tableSetPropertyAttribute.ArgumentList.Arguments[0].Expression is not TypeOfExpressionSyntax typeOfSyntax)
+            {
+                continue;
+            }
+
+            TypeSyntax typeSyntax = typeOfSyntax.Type;
+            TypeInfo typeInfo = semanticModel.GetTypeInfo(typeSyntax, cancellationToken: ct);
+            string type = typeInfo.Type?.ToDisplayString() ?? typeSyntax.ToFullString();
+            TypeKind typeKind = GetTypeKind(typeInfo.Type);
+            bool tagBlob = GetArgumentValue(tableSetPropertyAttribute, "Tag") == "true";
+
+            members.Add(new MemberToGenerate(
+                name: name,
+                type: type,
+                typeKind: typeKind,
+                generateProperty: true, // These are always generated
+                partitionKeyProxy: partitionKeyProxy,
+                rowKeyProxy: rowKeyProxy,
+                withChangeTracking: withChangeTracking,
+                isPartial: false, // These are not pre-existing partial properties
+                tagBlob: tagBlob
+            ));
+        }
+    }
+
     private static List<ClassToGenerate> GetTypesToGenerate(Compilation compilation, IEnumerable<ClassDeclarationSyntax> classes, CancellationToken ct)
     {
-        // Create a list to hold our output
         List<ClassToGenerate> classesToGenerate = [];
 
         foreach (ClassDeclarationSyntax classDeclarationSyntax in classes)
         {
-            // stop if we're asked to
-            ct.ThrowIfCancellationRequested();
-
-            // Get the semantic representation of the class syntax
-            SemanticModel semanticModel = compilation.GetSemanticModel(classDeclarationSyntax.SyntaxTree);
-            if (semanticModel.GetDeclaredSymbol(classDeclarationSyntax, cancellationToken: ct) is not INamedTypeSymbol classSymbol)
+            var classToGen = ProcessClassDeclaration(compilation, classDeclarationSyntax, ct);
+            if (classToGen != null)
             {
-                // something went wrong, bail out
-                continue;
+                classesToGenerate.Add(classToGen.Value);
             }
-
-            List<(string fullName, AttributeSyntax attributeSyntax)> relevantSymbols = [];
-            foreach (AttributeListSyntax attributeListSyntax in classDeclarationSyntax.AttributeLists)
-            {
-                foreach (AttributeSyntax attributeSyntax in attributeListSyntax.Attributes)
-                {
-                    if (semanticModel.GetSymbolInfo(attributeSyntax, cancellationToken: ct).Symbol is not IMethodSymbol attributeSymbol)
-                    {
-                        // weird, we couldn't get the symbol, ignore it
-                        continue;
-                    }
-
-                    INamedTypeSymbol attributeContainingTypeSymbol = attributeSymbol.ContainingType;
-                    string fullName = attributeContainingTypeSymbol.ToDisplayString();
-
-                    if (fullName.StartsWith("TableStorage."))
-                    {
-                        relevantSymbols.Add((fullName, attributeSyntax));
-                    }
-                }
-            }
-
-            // Get all the members in the class
-            ImmutableArray<ISymbol> classMembers = classSymbol.GetMembers();
-
-            List<MemberToGenerate> members = new(classMembers.Length);
-            List<PrettyMemberToGenerate> prettyMembers = new(2);
-
-            AttributeSyntax tablesetAttribute = relevantSymbols.First(x => x.fullName == "TableStorage.TableSetAttribute").attributeSyntax;
-
-            bool withBlobSupport = GetArgumentValue(tablesetAttribute, "SupportBlobs") == "true";
-            bool withTablesSupport = GetArgumentValue(tablesetAttribute, "DisableTables") != "true";
-            bool withChangeTracking = withTablesSupport && GetArgumentValue(tablesetAttribute, "TrackChanges") == "true";
-
-            string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
-            if (partitionKeyProxy is not null)
-            {
-                prettyMembers.Add(new(partitionKeyProxy, "PartitionKey"));
-            }
-            else
-            {
-                partitionKeyProxy = "null";
-            }
-
-            string? rowKeyProxy = GetArgumentValue(tablesetAttribute, "RowKey");
-            if (rowKeyProxy is not null)
-            {
-                prettyMembers.Add(new(rowKeyProxy, "RowKey"));
-            }
-            else
-            {
-                rowKeyProxy = "null";
-            }
-
-            // Get all the properties from the class, and add their name to the list
-            foreach (ISymbol member in classMembers)
-            {
-                if (member is IPropertySymbol property)
-                {
-                    switch (property.Name)
-                    {
-                        case "PartitionKey":
-                        case "RowKey":
-                        case "Timestamp":
-                        case "ETag":
-                        case "this[]":
-                        case "Keys":
-                        case "Values":
-                        case "Count":
-                        case "IsReadOnly":
-                            break;
-
-                        default:
-                            ITypeSymbol type = property.Type;
-                            TypeKind typeKind = GetTypeKind(type);
-
-                            bool tagBlob = property.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString() is "TableStorage.TagAttribute");
-
-                            bool generate = property.IsPartialDefinition &&
-                                           !prettyMembers.Any(x => x.Name == property.Name);
-
-                            members.Add(new(member.Name, type.ToDisplayString(), typeKind, generate, "null", "null", withChangeTracking, property.IsPartialDefinition, tagBlob));
-                            break;
-                    }
-                }
-            }
-
-            foreach ((string _, AttributeSyntax tableSetPropertyAttribute) in relevantSymbols.Where(x => x.fullName == "TableStorage.TableSetPropertyAttribute"))
-            {
-                // Generate additional fields
-                var nameSyntax = (LiteralExpressionSyntax)tableSetPropertyAttribute.ArgumentList!.Arguments[1].Expression;
-                string name = nameSyntax.Token.ValueText;
-
-                var typeOfSyntax = (TypeOfExpressionSyntax)tableSetPropertyAttribute.ArgumentList!.Arguments[0].Expression;
-                TypeSyntax typeSyntax = typeOfSyntax.Type;
-
-                TypeInfo typeInfo = semanticModel.GetTypeInfo(typeSyntax, cancellationToken: ct);
-
-                string type = typeInfo.Type?.ToDisplayString() ?? typeSyntax.ToFullString();
-                TypeKind typeKind = GetTypeKind(typeInfo.Type);
-
-                bool tagBlob = GetArgumentValue(tableSetPropertyAttribute, "Tag") == "true";
-
-                members.Add(new(name, type, typeKind, true, partitionKeyProxy, rowKeyProxy, withChangeTracking, false, tagBlob));
-            }
-
-            // Create an ClassToGenerate for use in the generation phase
-            classesToGenerate.Add(new(classSymbol.Name, classSymbol.ContainingNamespace.ToDisplayString(), members, prettyMembers, withBlobSupport, withTablesSupport));
         }
 
         return classesToGenerate;
@@ -296,52 +360,124 @@ namespace TableStorage
         _ => type.TypeKind,
     };
 
-    public static IEnumerable<(string name, string result)> GenerateTableContextClasses(List<ClassToGenerate> classesToGenerate, bool publishAot, string? tableStorageSerializerContext)
+    private static string GenerateSingleTableSetClassString(ClassToGenerate classToGenerate, bool publishAot, string? tableStorageSerializerContext)
     {
         StringBuilder modelBuilder = new();
 
-        foreach (ClassToGenerate classToGenerate in classesToGenerate)
-        {
-            modelBuilder.Clear();
-            modelBuilder.Append(Header.Value).Append(@"using Microsoft.Extensions.DependencyInjection;
+        modelBuilder.Append(Header.Value).Append(@"using Microsoft.Extensions.DependencyInjection;
 using TableStorage;
 using System.Collections.Generic;
 using System;
 ");
 
-            if (classToGenerate.Members.Any(m => m.WithChangeTracking))
-            {
-                modelBuilder.AppendLine("using System.Linq;");
-            }
+        if (classToGenerate.Members.Any(m => m.WithChangeTracking))
+        {
+            modelBuilder.AppendLine("using System.Linq;");
+        }
 
-            if (classToGenerate.WithBlobSupport)
-            {
-                modelBuilder.AppendLine("using System.Text.Json;");
-            }
+        if (classToGenerate.WithBlobSupport)
+        {
+            modelBuilder.AppendLine("using System.Text.Json;");
+        }
 
-            GenerateModel(modelBuilder, classToGenerate, publishAot, tableStorageSerializerContext);
+        GenerateModel(modelBuilder, classToGenerate, publishAot, tableStorageSerializerContext);
 
-            yield return (classToGenerate.Namespace + "." + classToGenerate.Name, modelBuilder.ToString());
+        return modelBuilder.ToString();
+    }
+
+    public static IEnumerable<(string name, string result)> GenerateTableContextClasses(List<ClassToGenerate> classesToGenerate, bool publishAot, string? tableStorageSerializerContext)
+    {
+        foreach (ClassToGenerate classToGenerate in classesToGenerate)
+        {
+            string modelResult = GenerateSingleTableSetClassString(classToGenerate, publishAot, tableStorageSerializerContext);
+            yield return (classToGenerate.Namespace + "." + classToGenerate.Name, modelResult);
         }
     }
 
+    // Model generation methods
     private static void GenerateModel(StringBuilder sb, ClassToGenerate classToGenerate, bool publishAot, string? tableStorageSerializerContext)
+    {
+        var modelContext = InitializeModelContext(classToGenerate);
+        
+        GenerateNamespaceStart(sb, classToGenerate.Namespace);
+        GenerateClassSignature(sb, classToGenerate, modelContext);
+        
+        if (classToGenerate.WithTablesSupport)
+        {
+            GenerateTableSetFactoryMethod(sb, classToGenerate, modelContext);
+        }
+        
+        if (classToGenerate.WithBlobSupport)
+        {
+            GenerateBlobSupportMembers(sb, classToGenerate, modelContext);
+        }
+        
+        if (classToGenerate.WithTablesSupport && modelContext.HasChangeTracking)
+        {
+            GenerateChangeTrackingSupport(sb, classToGenerate, modelContext);
+        }
+        
+        if (classToGenerate.WithTablesSupport)
+        {
+            GenerateTableEntityMembers(sb, modelContext);
+        }
+        
+        GenerateClassProperties(sb, classToGenerate);
+        GenerateIndexerImplementation(sb, classToGenerate, modelContext, publishAot, tableStorageSerializerContext);
+        
+        if (classToGenerate.WithTablesSupport)
+        {
+            GenerateDictionaryImplementation(sb, classToGenerate, modelContext);
+        }
+        
+        sb.Append(@"
+    }
+");
+        
+        GenerateNamespaceEnd(sb, classToGenerate.Namespace);
+    }
+
+    private static ModelContext InitializeModelContext(ClassToGenerate classToGenerate)
     {
         bool hasChangeTracking = classToGenerate.Members.Any(x => x.WithChangeTracking);
         bool hasPartitionKeyProxy = classToGenerate.TryGetPrettyMember("PartitionKey", out PrettyMemberToGenerate partitionKeyProxy);
-        string realParitionKey = hasPartitionKeyProxy ? partitionKeyProxy.Name : "PartitionKey";
+        string realPartitionKey = hasPartitionKeyProxy ? partitionKeyProxy.Name : "PartitionKey";
         bool hasRowKeyProxy = classToGenerate.TryGetPrettyMember("RowKey", out PrettyMemberToGenerate rowKeyProxy);
         string realRowKey = hasRowKeyProxy ? rowKeyProxy.Name : "RowKey";
 
-        if (!string.IsNullOrEmpty(classToGenerate.Namespace))
+        return new ModelContext(
+            hasChangeTracking,
+            hasPartitionKeyProxy,
+            hasRowKeyProxy,
+            partitionKeyProxy,
+            rowKeyProxy,
+            realPartitionKey,
+            realRowKey
+        );
+    }
+
+    private static void GenerateNamespaceStart(StringBuilder sb, string? @namespace)
+    {
+        if (!string.IsNullOrEmpty(@namespace))
         {
             sb.Append(@"
-namespace ").Append(classToGenerate.Namespace).Append(@"
+namespace ").Append(@namespace).Append(@"
 {");
         }
+    }
 
+    private static void GenerateNamespaceEnd(StringBuilder sb, string? @namespace)
+    {
+        if (!string.IsNullOrEmpty(@namespace))
+        {
+            sb.Append('}');
+        }
+    }
+
+    private static void GenerateClassSignature(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)
+    {
         sb.Append(@"
-    [System.Diagnostics.DebuggerDisplay(@""").Append(classToGenerate.Name).Append(@" \{ {").Append(realParitionKey).Append("}, {").Append(realRowKey).Append(@"} \}"")]
+    [System.Diagnostics.DebuggerDisplay(@""").Append(classToGenerate.Name).Append(@" \{ {").Append(context.RealPartitionKey).Append("}, {").Append(context.RealRowKey).Append(@"} \}"")]
     partial class ").Append(classToGenerate.Name);
 
         if (classToGenerate.WithTablesSupport || classToGenerate.WithBlobSupport)
@@ -353,7 +489,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             sb.Append(@"IDictionary<string, object>, Azure.Data.Tables.ITableEntity");
 
-            if (hasChangeTracking)
+            if (context.HasChangeTracking)
             {
                 sb.Append(", TableStorage.IChangeTracking");
             }
@@ -372,106 +508,109 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@"
     {
 ");
+    }
 
-        if (classToGenerate.WithTablesSupport)
-        {
-            sb.Append(@"
+    private static void GenerateTableSetFactoryMethod(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)
+    {
+        sb.Append(@"
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static TableSet<").Append(classToGenerate.Name).Append(@"> CreateTableSet(TableStorage.ICreator creator, string name)
         {
             return creator.CreateSet");
 
-            if (hasChangeTracking)
-            {
-                sb.Append("WithChangeTracking");
-            }
+        if (context.HasChangeTracking)
+        {
+            sb.Append("WithChangeTracking");
+        }
 
-            sb.Append('<').Append(classToGenerate.Name).Append(">(name, ");
+        sb.Append('<').Append(classToGenerate.Name).Append(">(name, ");
 
-            if (hasPartitionKeyProxy)
-            {
-                sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasPartitionKeyProxy)
+        {
+            sb.Append('"').Append(context.PartitionKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(", ");
+        sb.Append(", ");
 
-            if (hasRowKeyProxy)
-            {
-                sb.Append('"').Append(rowKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasRowKeyProxy)
+        {
+            sb.Append('"').Append(context.RowKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(@");
+        sb.Append(@");
         }
 ");
+    }
+
+    private static void GenerateBlobSupportMembers(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)
+    {
+        // Generate PartitionKey and RowKey implementation for IBlobEntity
+        if (context.HasPartitionKeyProxy)
+        {
+            sb.Append(@"
+        string IBlobEntity.PartitionKey => ").Append(context.RealPartitionKey).Append(';');
+        }
+        else if (!classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"
+        public string PartitionKey { get; set; }");
         }
 
-        if (classToGenerate.WithBlobSupport)
+        if (context.HasRowKeyProxy)
         {
-            if (hasPartitionKeyProxy)
-            {
-                sb.Append(@"
-        string IBlobEntity.PartitionKey => ").Append(realParitionKey).Append(';');
-            }
-            else if (!classToGenerate.WithTablesSupport)
-            {
-                sb.Append(@"
-        public string PartitionKey { get; set; }");
-            }
-
-            if (hasRowKeyProxy)
-            {
-                sb.Append(@"
-        string IBlobEntity.RowKey => ").Append(realRowKey).Append(';');
-            }
-            else if (!classToGenerate.WithTablesSupport)
-            {
-                sb.Append(@"
-        public string RowKey { get; set; }");
-            }
-
             sb.Append(@"
+        string IBlobEntity.RowKey => ").Append(context.RealRowKey).Append(';');
+        }
+        else if (!classToGenerate.WithTablesSupport)
+        {
+            sb.Append(@"
+        public string RowKey { get; set; }");
+        }
+
+        // Generate CreateBlobSet method
+        sb.Append(@"
 
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
         public static BlobSet<").Append(classToGenerate.Name).Append(@"> CreateBlobSet(TableStorage.IBlobCreator creator, string name)
         {
             return creator.CreateSet<").Append(classToGenerate.Name).Append(@">(name, ");
 
-            if (hasPartitionKeyProxy)
-            {
-                sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasPartitionKeyProxy)
+        {
+            sb.Append('"').Append(context.PartitionKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(", ");
+        sb.Append(", ");
 
-            if (hasRowKeyProxy)
-            {
-                sb.Append('"').Append(rowKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasRowKeyProxy)
+        {
+            sb.Append('"').Append(context.RowKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(", [");
+        sb.Append(", [");
 
-            foreach (string? tag in classToGenerate.Members.Where(x => x.TagBlob).Select(x => x.Name))
-            {
-                sb.Append('"').Append(tag).Append("\", ");
-            }
+        foreach (string? tag in classToGenerate.Members.Where(x => x.TagBlob).Select(x => x.Name))
+        {
+            sb.Append('"').Append(tag).Append("\", ");
+        }
 
-            sb.Append(@"]);
+        sb.Append(@"]);
         }
 
         [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
@@ -479,41 +618,44 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             return creator.CreateAppendSet<").Append(classToGenerate.Name).Append(@">(name, ");
 
-            if (hasPartitionKeyProxy)
-            {
-                sb.Append('"').Append(partitionKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasPartitionKeyProxy)
+        {
+            sb.Append('"').Append(context.PartitionKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(", ");
+        sb.Append(", ");
 
-            if (hasRowKeyProxy)
-            {
-                sb.Append('"').Append(rowKeyProxy.Name).Append('"');
-            }
-            else
-            {
-                sb.Append("null");
-            }
+        if (context.HasRowKeyProxy)
+        {
+            sb.Append('"').Append(context.RowKeyProxy.Name).Append('"');
+        }
+        else
+        {
+            sb.Append("null");
+        }
 
-            sb.Append(", [");
+        sb.Append(", [");
 
-            foreach (string? tag in classToGenerate.Members.Where(x => x.TagBlob).Select(x => x.Name))
-            {
-                sb.Append('"').Append(tag).Append("\", ");
-            }
+        foreach (string? tag in classToGenerate.Members.Where(x => x.TagBlob).Select(x => x.Name))
+        {
+            sb.Append('"').Append(tag).Append("\", ");
+        }
 
-            sb.Append(@"]);
+        sb.Append(@"]);
         }
 ");
-        }
+    }
 
-        if (classToGenerate.WithTablesSupport && hasChangeTracking)
-        {
-            sb.Append(@"
+    private static void GenerateChangeTrackingSupport(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)
+    {
+        string realPartitionKey = context.RealPartitionKey;
+        string realRowKey = context.RealRowKey;
+
+        sb.Append(@"
         private readonly HashSet<string> _changes = new HashSet<string>();
 
         public void AcceptChanges()
@@ -533,33 +675,33 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         public Azure.Data.Tables.ITableEntity GetEntity()
         {
-            var entityDictionary = new Dictionary<string, object>(").Append(4 + classToGenerate.Members.Count(x => !x.WithChangeTracking)).Append(@" + _changes.Count)
+            var entityDictionary = new Dictionary<string, object>(").Append(4 + classToGenerate.Members.Count(x => x.Name != realPartitionKey && x.Name != realRowKey && !x.WithChangeTracking)).Append(@" + _changes.Count)
             {
-                [""PartitionKey""] = ").Append(realParitionKey).Append(@",
-                [""RowKey""] = ").Append(realRowKey).Append(@",
+                [""PartitionKey""] = ").Append(context.RealPartitionKey).Append(@",
+                [""RowKey""] = ").Append(context.RealRowKey).Append(@",
                 [""Timestamp""] = Timestamp,
                 [""ETag""] = ETag.ToString(),");
 
-            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => !x.WithChangeTracking))
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realPartitionKey && x.Name != realRowKey && !x.WithChangeTracking))
+        {
+            sb.AppendLine().Append("                [\"").Append(item.Name).Append("\"] = ");
+
+            if (item.TypeKind == TypeKind.Enum)
             {
-                sb.AppendLine().Append("                [\"").Append(item.Name).Append("\"] = ");
+                sb.Append("(int");
 
-                if (item.TypeKind == TypeKind.Enum)
+                if (item.Type.EndsWith("?"))
                 {
-                    sb.Append("(int");
-
-                    if (item.Type.EndsWith("?"))
-                    {
-                        sb.Append('?');
-                    }
-
-                    sb.Append(") ");
+                    sb.Append('?');
                 }
 
-                sb.Append(item.Name).Append(',');
+                sb.Append(") ");
             }
 
-            sb.Append(@"
+            sb.Append(item.Name).Append(',');
+        }
+
+        sb.Append(@"
             };
 
             foreach (var key in _changes)
@@ -568,29 +710,29 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 {
 ");
 
-            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.WithChangeTracking))
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realPartitionKey && x.Name != realRowKey && x.WithChangeTracking))
+        {
+            sb.Append("                    \"").Append(item.Name).Append("\" => ");
+
+            if (item.TypeKind == TypeKind.Enum)
             {
-                sb.Append("                    \"").Append(item.Name).Append("\" => ");
+                sb.Append("(int");
 
-                if (item.TypeKind == TypeKind.Enum)
+                if (item.Type.EndsWith("?"))
                 {
-                    sb.Append("(int");
-
-                    if (item.Type.EndsWith("?"))
-                    {
-                        sb.Append('?');
-                    }
-
-                    sb.Append(") ");
+                    sb.Append('?');
                 }
 
-                sb.Append(item.Name).AppendLine(", ");
+                sb.Append(") ");
             }
 
-            sb.Append(@"                    _ => throw new System.ArgumentException()
+            sb.Append(item.Name).AppendLine(", ");
+        }
+
+        sb.Append(@"                    _ => throw new System.ArgumentException()
                 };");
 
-            sb.Append(@"
+        sb.Append(@"
             }
 
             return new Azure.Data.Tables.TableEntity(entityDictionary);
@@ -604,47 +746,50 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         public void SetChanged()
         {");
 
-            foreach (MemberToGenerate member in classToGenerate.Members.Where(x => x.GenerateProperty))
-            {
-                sb.AppendLine().Append("            SetChanged(\"" + member.Name + "\");");
-            }
+        foreach (MemberToGenerate member in classToGenerate.Members.Where(x => x.Name != realPartitionKey && x.Name != realRowKey && x.GenerateProperty))
+        {
+            sb.AppendLine().Append("            SetChanged(\"" + member.Name + "\");");
+        }
 
-            sb.Append(@"
+        sb.Append(@"
         }
 ");
+    }
+
+    private static void GenerateTableEntityMembers(StringBuilder sb, in ModelContext context)
+    {
+        sb.Append(@"
+        ");
+
+        if (context.HasPartitionKeyProxy)
+        {
+            sb.Append("string Azure.Data.Tables.ITableEntity.PartitionKey { get => ").Append(context.PartitionKeyProxy.Name).Append("; set => ").Append(context.PartitionKeyProxy.Name).Append(" = value; }");
+        }
+        else
+        {
+            sb.Append("public string PartitionKey { get; set; }");
         }
 
-        if (classToGenerate.WithTablesSupport)
+        sb.Append(@"
+        ");
+
+        if (context.HasRowKeyProxy)
         {
-            sb.Append(@"
-        ");
+            sb.Append("string Azure.Data.Tables.ITableEntity.RowKey { get => ").Append(context.RowKeyProxy.Name).Append("; set => ").Append(context.RowKeyProxy.Name).Append(" = value; }");
+        }
+        else
+        {
+            sb.Append("public string RowKey { get; set; }");
+        }
 
-            if (hasPartitionKeyProxy)
-            {
-                sb.Append("string Azure.Data.Tables.ITableEntity.PartitionKey { get => ").Append(partitionKeyProxy.Name).Append("; set => ").Append(partitionKeyProxy.Name).Append(" = value; }");
-            }
-            else
-            {
-                sb.Append("public string PartitionKey { get; set; }");
-            }
-
-            sb.Append(@"
-        ");
-
-            if (hasRowKeyProxy)
-            {
-                sb.Append("string Azure.Data.Tables.ITableEntity.RowKey { get => ").Append(rowKeyProxy.Name).Append("; set => ").Append(rowKeyProxy.Name).Append(" = value; }");
-            }
-            else
-            {
-                sb.Append("public string RowKey { get; set; }");
-            }
-
-            sb.Append(@"
+        sb.Append(@"
         public DateTimeOffset? Timestamp { get; set; }
         public Azure.ETag ETag { get; set; }");
-        }
+    }
 
+    private static void GenerateClassProperties(StringBuilder sb, ClassToGenerate classToGenerate)
+    {
+        // Generate custom properties
         foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.GenerateProperty))
         {
             if (classToGenerate.WithTablesSupport)
@@ -652,7 +797,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 sb.Append(@"
         [System.Runtime.Serialization.IgnoreDataMember]");
             }
-         
+
             sb.Append(@"
         public ");
 
@@ -692,6 +837,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             }
         }
 
+        // Generate pretty member properties
         foreach (PrettyMemberToGenerate item in classToGenerate.PrettyMembers)
         {
             bool partial = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name);
@@ -715,7 +861,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
                 if (partial)
                 {
-                    sb.Append(" { get => _").Append(item.Name).Append("; set => _").Append(item.Name).AppendLine(" = value; }")
+                    sb.Append(" { get => _").Append(item.Name).Append("; set => _").Append(item.Name).Append(" = value; }")
                       .Append("        private string _").Append(item.Name).Append(';');
                 }
                 else
@@ -742,7 +888,10 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 sb.Append("string ").Append(item.Name).Append(" { get => ").Append(item.Proxy).Append("; set => ").Append(item.Proxy).Append(" = value; }");
             }
         }
+    }
 
+    private static void GenerateIndexerImplementation(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context, bool publishAot, string? tableStorageSerializerContext)
+    {
         sb.Append(@"
 
         public object this[string key]
@@ -751,8 +900,8 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 switch (key)
                 {
-                    case ""PartitionKey"": return ").Append(realParitionKey).Append(@";
-                    case ""RowKey"": return ").Append(realRowKey).Append(';');
+                    case ""PartitionKey"": return ").Append(context.RealPartitionKey).Append(@";
+                    case ""RowKey"": return ").Append(context.RealRowKey).Append(';');
 
         if (classToGenerate.WithTablesSupport)
         {
@@ -776,291 +925,284 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         if (!classToGenerate.WithTablesSupport)
         {
             sb.AppendLine("        }");
+            return;
         }
-        else
-        {
-            sb.Append(@"
+
+        // Generate indexer setter for table support
+        sb.Append(@"
 
             set
             {
                 switch (key)
                 {
-                    case ""PartitionKey"": ").Append(realParitionKey).Append(@" = value?.ToString(); break;
-                    case ""RowKey"": ").Append(realRowKey).Append(@" = value?.ToString(); break;
+                    case ""PartitionKey"": ").Append(context.RealPartitionKey).Append(@" = value?.ToString(); break;
+                    case ""RowKey"": ").Append(context.RealRowKey).Append(@" = value?.ToString(); break;
                     case ""Timestamp"": Timestamp = ");
 
-            if (classToGenerate.WithBlobSupport)
+        if (classToGenerate.WithBlobSupport)
+        {
+            sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.GetDateTimeOffset() : (System.DateTimeOffset?)value)");
+        }
+        else
+        {
+            sb.Append("(System.DateTimeOffset?)value");
+        }
+
+        sb.Append(@"; break;
+                    case ""odata.etag"": ETag = new Azure.ETag(value?.ToString()); break;");
+
+        foreach (MemberToGenerate item in classToGenerate.Members)
+        {
+            sb.Append(@"
+                    case """).Append(item.Name).Append(@""": ");
+
+            if (item.WithChangeTracking)
             {
-                sb.Append("(value is System.Text.Json.JsonElement _TimestampJsonElement ? _TimestampJsonElement.GetDateTimeOffset() : (System.DateTimeOffset?)value)");
+                sb.Append('_');
+            }
+
+            sb.Append(item.Name).Append(" = ");
+
+            GenerateValueConversion(sb, item, classToGenerate.WithBlobSupport, publishAot, tableStorageSerializerContext);
+
+            sb.Append("; break;");
+        }
+
+        sb.Append(@"
+                }
+            }
+        }");
+    }
+
+    private static void GenerateValueConversion(StringBuilder sb, MemberToGenerate item, bool withBlobSupport, bool publishAot, string? tableStorageSerializerContext)
+    {
+        // Begin cast
+        sb.Append('(');
+
+        if (item.Type == typeof(DateTime).FullName)
+        {
+            if (withBlobSupport)
+            {
+                sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : (DateTimeOffset)value).DateTime");
             }
             else
             {
-                sb.Append("(System.DateTimeOffset?)value");
-            }
-
-            sb.Append(@"; break;
-                    case ""odata.etag"": ETag = new Azure.ETag(value?.ToString()); break;");
-
-            foreach (MemberToGenerate item in classToGenerate.Members)
-            {
-                sb.Append(@"
-                    case """).Append(item.Name).Append(@""": ");
-
-                if (item.WithChangeTracking)
-                {
-                    sb.Append('_');
-                }
-
-                sb.Append(item.Name).Append(" = (");
-
-                if (item.Type == typeof(DateTime).FullName)
-                {
-                    if (classToGenerate.WithBlobSupport)
-                    {
-                        sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : (DateTimeOffset)value).DateTime");
-                    }
-                    else
-                    {
-                        sb.Append("(DateTimeOffset)value).DateTime");
-                    }
-                }
-                else if (item.Type == typeof(DateTime).FullName + "?")
-                {
-                    if (classToGenerate.WithBlobSupport)
-                    {
-                        sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : value as DateTimeOffset?)?.DateTime");
-                    }
-                    else
-                    {
-                        sb.Append("value as DateTimeOffset?)?.DateTime");
-                    }
-                }
-                else if (item.TypeKind == TypeKind.Enum)
-                {
-                    if (classToGenerate.WithBlobSupport)
-                    {
-                        sb.Append("value is System.Text.Json.JsonElement _")
-                          .Append(item.Name)
-                          .Append("JsonElement ? (Enum.TryParse(_")
-                          .Append(item.Name)
-                          .Append("JsonElement.ToString(), out ")
-                          .Append(item.Type.TrimEnd('?'))
-                          .Append(" _")
-                          .Append(item.Name)
-                          .Append("JsonElementParseResult) ? _")
-                          .Append(item.Name)
-                          .Append("JsonElementParseResult : default(")
-                          .Append(item.Type)
-                          .Append(")) : (");
-                        ;
-                    }
-
-                    sb.Append("value is int _").Append(item.Name).Append("Integer ? (").Append(item.Type).Append(") _").Append(item.Name).Append("Integer : ")
-                      .Append("Enum.TryParse(value?.ToString(), out ")
-                      .Append(item.Type.TrimEnd('?'))
-                      .Append(" _")
-                      .Append(item.Name)
-                      .Append("ParseResult) ? _")
-                      .Append(item.Name)
-                      .Append("ParseResult : default(")
-                      .Append(item.Type)
-                      .Append("))");
-
-                    if (classToGenerate.WithBlobSupport)
-                    {
-                        sb.Append(')');
-                    }
-                }
-                else
-                {
-                    if (classToGenerate.WithBlobSupport)
-                    {
-                        string? deserializing = item.Type.ToLowerInvariant().TrimEnd('?') switch
-                        {
-                            "string" or "system.string" => "GetString(",
-                            "int" or "system.int32" => "GetInt32(",
-                            "long" or "system.int64" => "GetInt64(",
-                            "double" or "system.double" => "GetDouble(",
-                            "float" or "system.single" => "GetSingle(",
-                            "decimal" or "system.decimal" => "GetDecimal(",
-                            "bool" or "system.boolean" => "GetBoolean(",
-                            "system.guid" => "GetGuid(",
-                            "system.datetime" => "GetDateTime(",
-                            "system.datetimeoffset" => "GetDateTimeOffset(",
-                            "system.timespan" => "GetTimeSpan(",
-                            _ when !publishAot && string.IsNullOrEmpty(tableStorageSerializerContext) => "Deserialize<" + item.Type + ">(",
-                            _ => null
-                        };
-
-                        if (deserializing is null)
-                        {
-                            sb.Append(item.Type)
-                              .Append(") ");
-
-                            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
-                            {
-                                sb.Append("( value is System.Text.Json.JsonElement _")
-                                  .Append(item.Name)
-                                  .Append($"JsonElement ? (")
-                                  .Append(item.Type)
-                                  .Append(") _")
-                                  .Append(item.Name)
-                                  .Append("JsonElement.Deserialize(")
-                                  .Append(tableStorageSerializerContext)
-                                  .Append(".Default.GetTypeInfo(typeof(")
-                                  .Append(item.Type)
-                                  .Append("))) : ");
-                            }
-
-                            sb.Append(" value");
-
-                            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
-                            {
-                                sb.Append(')');
-                            }
-                        }
-                        else
-                        {
-                            sb.Append("value is System.Text.Json.JsonElement _")
-                              .Append(item.Name)
-                              .Append("JsonElement ? _")
-                              .Append(item.Name)
-                              .Append("JsonElement.")
-                              .Append(deserializing)
-                              .Append(") : (")
-                              .Append(item.Type)
-                              .Append(") value)");
-                        }
-                    }
-                    else
-                    {
-                        sb.Append(item.Type).Append(") value");
-                    }
-                }
-
-                sb.Append("; break;");
-            }
-
-            sb.Append(@"
-                }
+                sb.Append("(DateTimeOffset)value).DateTime");
             }
         }
+        else if (item.Type == typeof(DateTime).FullName + "?")
+        {
+            if (withBlobSupport)
+            {
+                sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : value as DateTimeOffset?)?.DateTime");
+            }
+            else
+            {
+                sb.Append("value as DateTimeOffset?)?.DateTime");
+            }
+        }
+        else if (item.TypeKind == TypeKind.Enum)
+        {
+            GenerateEnumConversion(sb, item, withBlobSupport);
+        }
+        else
+        {
+            if (withBlobSupport)
+            {
+                GenerateBlobJsonConversion(sb, item, publishAot, tableStorageSerializerContext);
+            }
+            else
+            {
+                sb.Append(item.Type).Append(") value");
+            }
+        }
+    }
+
+    private static void GenerateEnumConversion(StringBuilder sb, MemberToGenerate item, bool withBlobSupport)
+    {
+        if (withBlobSupport)
+        {
+            sb.Append("value is System.Text.Json.JsonElement _")
+                .Append(item.Name)
+                .Append("JsonElement ? (Enum.TryParse(_")
+                .Append(item.Name)
+                .Append("JsonElement.ToString(), out ")
+                .Append(item.Type.TrimEnd('?'))
+                .Append(" _")
+                .Append(item.Name)
+                .Append("JsonElementParseResult) ? _")
+                .Append(item.Name)
+                .Append("JsonElementParseResult : default(")
+                .Append(item.Type)
+                .Append(")) : (");
+        }
+
+        sb.Append("value is int _").Append(item.Name).Append("Integer ? (").Append(item.Type).Append(") _").Append(item.Name).Append("Integer : ")
+            .Append("Enum.TryParse(value?.ToString(), out ")
+            .Append(item.Type.TrimEnd('?'))
+            .Append(" _")
+            .Append(item.Name)
+            .Append("ParseResult) ? _")
+            .Append(item.Name)
+            .Append("ParseResult : default(")
+            .Append(item.Type)
+            .Append("))");
+
+        if (withBlobSupport)
+        {
+            sb.Append(')');
+        }
+    }
+
+    private static void GenerateBlobJsonConversion(StringBuilder sb, MemberToGenerate item, bool publishAot, string? tableStorageSerializerContext)
+    {
+        string? deserializing = item.Type.ToLowerInvariant().TrimEnd('?') switch
+        {
+            "string" or "system.string" => "GetString(",
+            "int" or "system.int32" => "GetInt32(",
+            "long" or "system.int64" => "GetInt64(",
+            "double" or "system.double" => "GetDouble(",
+            "float" or "system.single" => "GetSingle(",
+            "decimal" or "system.decimal" => "GetDecimal(",
+            "bool" or "system.boolean" => "GetBoolean(",
+            "system.guid" => "GetGuid(",
+            "system.datetime" => "GetDateTime(",
+            "system.datetimeoffset" => "GetDateTimeOffset(",
+            "system.timespan" => "GetTimeSpan(",
+            _ when !publishAot && string.IsNullOrEmpty(tableStorageSerializerContext) => "Deserialize<" + item.Type + ">(",
+            _ => null
+        };
+
+        if (deserializing is null)
+        {
+            sb.Append(item.Type)
+                .Append(") ");
+
+            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+            {
+                sb.Append("( value is System.Text.Json.JsonElement _")
+                    .Append(item.Name)
+                    .Append($"JsonElement ? (")
+                    .Append(item.Type)
+                    .Append(") _")
+                    .Append(item.Name)
+                    .Append("JsonElement.Deserialize(")
+                    .Append(tableStorageSerializerContext)
+                    .Append(".Default.GetTypeInfo(typeof(")
+                    .Append(item.Type)
+                    .Append("))) : ");
+            }
+
+            sb.Append(" value");
+
+            if (!string.IsNullOrEmpty(tableStorageSerializerContext))
+            {
+                sb.Append(')');
+            }
+        }
+        else
+        {
+            sb.Append("value is System.Text.Json.JsonElement _")
+                .Append(item.Name)
+                .Append("JsonElement ? _")
+                .Append(item.Name)
+                .Append("JsonElement.")
+                .Append(deserializing)
+                .Append(") : (")
+                .Append(item.Type)
+                .Append(") value)");
+        }
+    }
+
+    private static void GenerateDictionaryImplementation(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)
+    {
+        string realPartitionKey = context.RealPartitionKey;
+        string realRowKey = context.RealRowKey;
+        List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realPartitionKey && x.Name != realRowKey)];
+        
+        // Keys collection
+        sb.Append(@"
 
         public ICollection<string> Keys => [ ""PartitionKey"", ""RowKey"", ""Timestamp"", ""odata.etag"", ");
 
-            List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey)];
+        foreach (MemberToGenerate item in keysAndValuesToGenerate)
+        {
+            sb.Append('"').Append(item.Name).Append(@""", ");
+        }
 
-            //if (hasChangeTracking)
-            //{
-            //    keysAndValuesToGenerate = [ ..keysAndValuesToGenerate.Where(x => !x.WithChangeTracking);
-            //}
+        // Values collection
+        sb.Append(@" ];
+        public ICollection<object> Values => [ ").Append(context.RealPartitionKey).Append(", ").Append(context.RealRowKey).Append(", Timestamp, ETag.ToString(), ");
 
-            foreach (MemberToGenerate item in keysAndValuesToGenerate)
+        foreach (MemberToGenerate item in keysAndValuesToGenerate)
+        {
+            if (item.TypeKind == TypeKind.Enum)
             {
-                sb.Append('"').Append(item.Name).Append(@""", ");
-            }
+                sb.Append("(int");
 
-            //if (hasChangeTracking)
-            //{
-            //    sb.Append(" .._changes");
-            //}
-
-            sb.Append(@" ];
-        public ICollection<object> Values => [ ").Append(realParitionKey).Append(", ").Append(realRowKey).Append(", Timestamp, ETag.ToString(), ");
-
-            foreach (MemberToGenerate item in keysAndValuesToGenerate)
-            {
-                if (item.TypeKind == TypeKind.Enum)
+                if (item.Type.EndsWith("?"))
                 {
-                    sb.Append("(int");
-
-                    if (item.Type.EndsWith("?"))
-                    {
-                        sb.Append('?');
-                    }
-
-                    sb.Append(") ");
+                    sb.Append('?');
                 }
 
-                sb.Append(item.Name).Append(", ");
+                sb.Append(") ");
             }
 
-            //        if (hasChangeTracking)
-            //        {
-            //            sb.Append(@" .._changes.Select<string, object>(x => x switch
-            //        {
-            //");
+            sb.Append(item.Name).Append(", ");
+        }
 
-            //            foreach (var item in classToGenerate.Members.Where(x => x.WithChangeTracking))
-            //            {
-            //                sb.Append("            \"").Append(item.Name).Append("\" => ");
+        // Count property
+        sb.Append(@" ];
+        public int Count => ").Append(4 + keysAndValuesToGenerate.Count).Append(@";
+        public bool IsReadOnly => false;");
 
-            //                if (item.TypeKind == TypeKind.Enum)
-            //                {
-            //                    sb.Append("(int");
+        // Dictionary methods
+        GenerateDictionaryMethods(sb, classToGenerate, context);
+    }
 
-            //                    if (item.Type.EndsWith("?"))
-            //                    {
-            //                        sb.Append('?');
-            //                    }
-
-            //                    sb.Append(") ");
-            //                }
-
-            //                sb.Append(item.Name).AppendLine(", ");
-            //            }
-
-            //            sb.Append(@"            _ => throw new System.ArgumentException()
-            //        })");
-            //        }
-
-            sb.Append(@" ];
-        public int Count => ").Append(4 + keysAndValuesToGenerate.Count);
-
-            //if (hasChangeTracking)
-            //{
-            //    sb.Append(" + _changes.Count");
-            //}
-
-            sb.Append(@";
-        public bool IsReadOnly => false;
+    private static void GenerateDictionaryMethods(StringBuilder sb, ClassToGenerate classToGenerate, ModelContext context)
+    {
+        bool hasChangeTracking = context.HasChangeTracking;
+        
+        // Add methods
+        sb.Append(@"
 
         public void Add(string key, object value)
         {
             this[key] = value;");
 
-            if (hasChangeTracking)
-            {
-                sb.Append(@"
-            SetChanged(key);");
-            }
-
+        if (hasChangeTracking)
+        {
             sb.Append(@"
+            SetChanged(key);");
+        }
+
+        sb.Append(@"
         }
 
         public void Add(KeyValuePair<string, object> item)
         {
             this[item.Key] = item.Value;");
 
-            if (hasChangeTracking)
-            {
-                sb.Append(@"
-            SetChanged(item.Key);");
-            }
-
+        if (hasChangeTracking)
+        {
             sb.Append(@"
+            SetChanged(item.Key);");
+        }
+
+        sb.Append(@"
         }
 
         public void Clear()
         {");
 
-            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
-            {
-                sb.Append(@"
-            ").Append(item.Name).Append(" = default(").Append(item.Type).Append(");");
-            }
-
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != context.RealPartitionKey && x.Name != context.RealRowKey))
+        {
             sb.Append(@"
+            ").Append(item.Name).Append(" = default(").Append(item.Type).Append(");");
+        }
+
+        sb.Append(@"
         }
 
         public bool Contains(KeyValuePair<string, object> item)
@@ -1082,13 +1224,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
                 case ""Timestamp"":
                 case ""odata.etag"":");
 
-            foreach (MemberToGenerate item in classToGenerate.Members)
-            {
-                sb.Append(@"
-                case """).Append(item.Name).Append(@""": ");
-            }
-
+        foreach (MemberToGenerate item in classToGenerate.Members)
+        {
             sb.Append(@"
+                case """).Append(item.Name).Append(@""": ");
+        }
+
+        sb.Append(@"
                     return true;
             
                 default: return false;
@@ -1120,32 +1262,32 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         public IEnumerator<KeyValuePair<string, object>> GetEnumerator()
         {
-            yield return new KeyValuePair<string, object>(""PartitionKey"", ").Append(realParitionKey).Append(@");
-            yield return new KeyValuePair<string, object>(""RowKey"", ").Append(realRowKey).Append(@");
+            yield return new KeyValuePair<string, object>(""PartitionKey"", ").Append(context.RealPartitionKey).Append(@");
+            yield return new KeyValuePair<string, object>(""RowKey"", ").Append(context.RealRowKey).Append(@");
             yield return new KeyValuePair<string, object>(""Timestamp"", Timestamp);
             yield return new KeyValuePair<string, object>(""odata.etag"", ETag.ToString());");
 
-            foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != realParitionKey && x.Name != realRowKey))
-            {
-                sb.Append(@"
+        foreach (MemberToGenerate item in classToGenerate.Members.Where(x => x.Name != context.RealPartitionKey && x.Name != context.RealRowKey))
+        {
+            sb.Append(@"
             yield return new KeyValuePair<string, object>(""").Append(item.Name).Append(@""", ");
 
-                if (item.TypeKind == TypeKind.Enum)
+            if (item.TypeKind == TypeKind.Enum)
+            {
+                sb.Append("(int");
+
+                if (item.Type.EndsWith("?"))
                 {
-                    sb.Append("(int");
-
-                    if (item.Type.EndsWith("?"))
-                    {
-                        sb.Append('?');
-                    }
-
-                    sb.Append(')');
+                    sb.Append('?');
                 }
 
-                sb.Append(item.Name).Append(");");
+                sb.Append(')');
             }
 
-            sb.Append(@"
+            sb.Append(item.Name).Append(");");
+        }
+
+        sb.Append(@"
         }
 
         public bool Remove(string key)
@@ -1154,13 +1296,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 this[key] = null;");
 
-            if (hasChangeTracking)
-            {
-                sb.Append(@"
-                SetChanged(key);");
-            }
-
+        if (hasChangeTracking)
+        {
             sb.Append(@"
+                SetChanged(key);");
+        }
+
+        sb.Append(@"
                 return true;
             }
 
@@ -1173,13 +1315,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             {
                 this[item.Key] = null;");
 
-            if (hasChangeTracking)
-            {
-                sb.Append(@"
-                SetChanged(item.Key);");
-            }
-
+        if (hasChangeTracking)
+        {
             sb.Append(@"
+                SetChanged(item.Key);");
+        }
+
+        sb.Append(@"
                 return true;
             }
 
@@ -1190,18 +1332,18 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             switch (key)
             {
-                case ""PartitionKey"": value = ").Append(realParitionKey).Append(@"; return true;
-                case ""RowKey"": value = ").Append(realRowKey).Append(@"; return true;
+                case ""PartitionKey"": value = ").Append(context.RealPartitionKey).Append(@"; return true;
+                case ""RowKey"": value = ").Append(context.RealRowKey).Append(@"; return true;
                 case ""Timestamp"": value = Timestamp; return true;
                 case ""odata.etag"": value = ETag; return true;");
 
-            foreach (MemberToGenerate item in classToGenerate.Members)
-            {
-                sb.Append(@"
-                case """).Append(item.Name).Append(@""": value = ").Append(item.Name).Append("; return true;");
-            }
-
+        foreach (MemberToGenerate item in classToGenerate.Members)
+        {
             sb.Append(@"
+                case """).Append(item.Name).Append(@""": value = ").Append(item.Name).Append("; return true;");
+        }
+
+        sb.Append(@"
                 default: value = null; return false;
             }
         }
@@ -1209,17 +1351,24 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
         {
             return this.GetEnumerator();
-        }
-");
-        }
-
-        sb.Append(@"
+        }");
     }
-");
 
-        if (!string.IsNullOrEmpty(classToGenerate.Namespace))
-        {
-            sb.Append('}');
-        }
+    private readonly struct ModelContext(
+        bool hasChangeTracking, 
+        bool hasPartitionKeyProxy, 
+        bool hasRowKeyProxy, 
+        PrettyMemberToGenerate partitionKeyProxy, 
+        PrettyMemberToGenerate rowKeyProxy, 
+        string realPartitionKey, 
+        string realRowKey)
+    {
+        public readonly bool HasChangeTracking = hasChangeTracking;
+        public readonly bool HasPartitionKeyProxy = hasPartitionKeyProxy;
+        public readonly bool HasRowKeyProxy = hasRowKeyProxy;
+        public readonly PrettyMemberToGenerate PartitionKeyProxy = partitionKeyProxy; 
+        public readonly PrettyMemberToGenerate RowKeyProxy = rowKeyProxy;
+        public readonly string RealPartitionKey = realPartitionKey;
+        public readonly string RealRowKey = realRowKey;
     }
 }
