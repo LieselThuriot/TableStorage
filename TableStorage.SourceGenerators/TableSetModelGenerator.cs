@@ -21,9 +21,13 @@ namespace TableStorage
     {
         public string PartitionKey { get; set; }
         public string RowKey { get; set; }
+#if TABLESTORAGE
         public bool TrackChanges { get; set; }
         public bool DisableTables { get; set; }
+#endif
+#if TABLESTORAGE_BLOBS
         public bool SupportBlobs { get; set; }
+#endif
     }
 
 
@@ -34,76 +38,89 @@ namespace TableStorage
         {
         }
 
+#if TABLESTORAGE_BLOBS
         public bool Tag { get; set; }
+#endif
     }
 
 
+#if TABLESTORAGE_BLOBS
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public sealed class TagAttribute : Attribute
     {
     }
+#endif
 }";
 
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         IncrementalValueProvider<bool> publishAot = context
             .AnalyzerConfigOptionsProvider
-            .Select((AnalyzerConfigOptionsProvider c, CancellationToken _) =>
+            .Select(static (AnalyzerConfigOptionsProvider c, CancellationToken _) =>
                 c.GlobalOptions.TryGetValue("build_property.PublishAot", out string? publishAot) && bool.TryParse(publishAot, out bool parsedPublishAot) && parsedPublishAot);
 
         IncrementalValueProvider<string?> tableStorageSerializerContext = context
             .AnalyzerConfigOptionsProvider
-            .Select((AnalyzerConfigOptionsProvider c, CancellationToken _) =>
+            .Select(static (AnalyzerConfigOptionsProvider c, CancellationToken _) =>
                 c.GlobalOptions.TryGetValue("build_property.TableStorageSerializerContext", out string? tableStorageSerializerContext) ? tableStorageSerializerContext : null);
 
-        context.RegisterPostInitializationOutput(ctx => ctx.AddSource("TableSetAttributes.g.cs", SourceText.From(TableAttributes, Encoding.UTF8)));
+        context.RegisterPostInitializationOutput(static ctx => ctx.AddSource("TableSetAttributes.g.cs", SourceText.From(TableAttributes, Encoding.UTF8)));
 
-        IncrementalValuesProvider<ClassDeclarationSyntax?> classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(predicate: static (s, _) => IsSyntaxTargetForGeneration(s), // select class with attributes
-                                                                            transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx)) // select the class with the [TableContext] attribute
-                                                      .Where(static m => m is not null) // filter out attributed classes that we don't care about
-                                                      ;
+        IncrementalValuesProvider<ClassDeclarationSyntax> classDeclarations = context.SyntaxProvider
+               .ForAttributeWithMetadataName(
+                    "TableStorage.TableSetAttribute",
+                    predicate: static (node, _) => node is ClassDeclarationSyntax,
+                    transform: static (ctx, _) => (ClassDeclarationSyntax) ctx.TargetNode
+               );
 
         IncrementalValueProvider<((Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classSyntax) compilationGroup, (bool publishAot, string? tableStorageSerializerContext) buildParams)> compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect()).Combine(publishAot.Combine(tableStorageSerializerContext))!;
 
         context.RegisterSourceOutput(compilationAndClasses, static (spc, source) => Execute(source.compilationGroup.compilation, source.compilationGroup.classSyntax, source.buildParams.publishAot, source.buildParams.tableStorageSerializerContext, spc));
     }
 
-    private static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
-
-    private static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, bool publishAot, string? tableStorageSerializerContext, SourceProductionContext context)
     {
-        // we know the node is a ClassDeclarationSyntax thanks to IsSyntaxTargetForGeneration
-        var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
-
-        // loop through all the attributes on the method
-        foreach (AttributeListSyntax attributeListSyntax in classDeclarationSyntax.AttributeLists)
+        bool hasTables = false, hasBlobs = false;
+        foreach (AssemblyIdentity referencedAssembly in compilation.ReferencedAssemblyNames)
         {
-            foreach (AttributeSyntax attributeSyntax in attributeListSyntax.Attributes)
+            switch (referencedAssembly.Name)
             {
-                if (context.SemanticModel.GetSymbolInfo(attributeSyntax).Symbol is not IMethodSymbol attributeSymbol)
-                {
-                    // weird, we couldn't get the symbol, ignore it
-                    continue;
-                }
+                case "TableStorage":
+                    hasTables = true;
 
-                INamedTypeSymbol attributeContainingTypeSymbol = attributeSymbol.ContainingType;
-                string fullName = attributeContainingTypeSymbol.ToDisplayString();
+                    if (hasBlobs)
+                    {
+                        break;
+                    }
 
-                // Is the attribute the [TableSetAttribute] attribute?
-                if (fullName is "TableStorage.TableSetAttribute")
-                {
-                    // return the class
-                    return classDeclarationSyntax;
-                }
+                    break;
+                case "TableStorage.Blobs":
+                    hasBlobs = true;
+
+                    if (hasTables)
+                    {
+                        break;
+                    }
+
+                    break;
             }
         }
 
-        // we didn't find the attribute we were looking for
-        return null;
-    }
+        if (!hasTables && !hasBlobs)
+        {
+            var descriptor = new DiagnosticDescriptor(
+                id: "TSG001",
+                title: "Missing TableStorage Reference",
+                messageFormat: "The TableStorage or TableStorage.Blobs assembly reference is required for TableContext generation.",
+                category: "TableStorage.SourceGenerators",
+                DiagnosticSeverity.Error,
+                isEnabledByDefault: true
+            );
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, bool publishAot, string? tableStorageSerializerContext, SourceProductionContext context)
-    {
+            context.ReportDiagnostic(Diagnostic.Create(descriptor, Location.None));
+            return;
+        }
+
         if (classes.IsDefaultOrEmpty)
         {
             // nothing to do yet
@@ -128,14 +145,7 @@ namespace TableStorage
     private static List<ClassToGenerate> GetTypesToGenerate(Compilation compilation, IEnumerable<ClassDeclarationSyntax> classes, CancellationToken ct)
     {
         // Create a list to hold our output
-        var classesToGenerate = new List<ClassToGenerate>();
-
-        // Get the semantic representation of our marker attribute 
-        INamedTypeSymbol? modelAttribute = compilation.GetTypeByMetadataName("TableStorage.TableSetAttribute");
-        if (modelAttribute is null)
-        {
-            return classesToGenerate;
-        }
+        List<ClassToGenerate> classesToGenerate = [];
 
         foreach (ClassDeclarationSyntax classDeclarationSyntax in classes)
         {

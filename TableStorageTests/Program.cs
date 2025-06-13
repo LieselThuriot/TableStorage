@@ -497,6 +497,13 @@ namespace TableStorage.Tests.Models
     }
 #nullable disable
 
+#if TABLESTORAGE_BLOBS
+    public class TestBlobs
+    {
+
+    }
+#endif
+
     [TableSet(PartitionKey = "Id", RowKey = "ContinuationToken", SupportBlobs = true, DisableTables = true)]
     public partial class Model5
     {

@@ -23,51 +23,60 @@ namespace TableStorage
     {
         context.RegisterPostInitializationOutput(ctx => ctx.AddSource("TableContextAttribute.g.cs", SourceText.From(TableContextAttribute, Encoding.UTF8)));
 
-        IncrementalValuesProvider<ClassDeclarationSyntax?> classDeclarations = context.SyntaxProvider.CreateSyntaxProvider(predicate: static (s, _) => IsSyntaxTargetForGeneration(s), // select class with attributes
-                                                                            transform: static (ctx, _) => GetSemanticTargetForGeneration(ctx)) // select the class with the [TableContext] attribute
-                                                      .Where(static m => m is not null) // filter out attributed classes that we don't care about
-                                                      ;
+        IncrementalValuesProvider<ClassDeclarationSyntax> classDeclarations = context.SyntaxProvider
+               .ForAttributeWithMetadataName(
+                    "TableStorage.TableContextAttribute",
+                    predicate: static (node, _) => node is ClassDeclarationSyntax,
+                    transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.TargetNode
+               );
 
         IncrementalValueProvider<(Compilation, ImmutableArray<ClassDeclarationSyntax>)> compilationAndClasses = context.CompilationProvider.Combine(classDeclarations.Collect())!;
         context.RegisterSourceOutput(compilationAndClasses, static (spc, source) => Execute(source.Item1, source.Item2, spc));
     }
 
-    private static bool IsSyntaxTargetForGeneration(SyntaxNode node) => node is ClassDeclarationSyntax m && m.AttributeLists.Count > 0;
-
-    private static ClassDeclarationSyntax? GetSemanticTargetForGeneration(GeneratorSyntaxContext context)
+    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, SourceProductionContext context)
     {
-        // we know the node is a ClassDeclarationSyntax thanks to IsSyntaxTargetForGeneration
-        var classDeclarationSyntax = (ClassDeclarationSyntax)context.Node;
-
-        // loop through all the attributes on the method
-        foreach (AttributeListSyntax attributeListSyntax in classDeclarationSyntax.AttributeLists)
+        bool hasTables = false, hasBlobs = false;
+        foreach (AssemblyIdentity referencedAssembly in compilation.ReferencedAssemblyNames)
         {
-            foreach (AttributeSyntax attributeSyntax in attributeListSyntax.Attributes)
+            switch (referencedAssembly.Name)
             {
-                if (context.SemanticModel.GetSymbolInfo(attributeSyntax).Symbol is not IMethodSymbol attributeSymbol)
-                {
-                    // weird, we couldn't get the symbol, ignore it
-                    continue;
-                }
+                case "TableStorage":
+                    hasTables = true;
 
-                INamedTypeSymbol attributeContainingTypeSymbol = attributeSymbol.ContainingType;
-                string fullName = attributeContainingTypeSymbol.ToDisplayString();
+                    if (hasBlobs)
+                    {
+                        break;
+                    }
 
-                // Is the attribute the [TableContext] attribute?
-                if (fullName is "TableStorage.TableContextAttribute")
-                {
-                    // return the class
-                    return classDeclarationSyntax;
-                }
+                    break;
+                case "TableStorage.Blobs":
+                    hasBlobs = true;
+
+                    if (hasTables)
+                    {
+                        break;
+                    }
+
+                    break;
             }
         }
 
-        // we didn't find the attribute we were looking for
-        return null;
-    }
+        if (!hasTables && !hasBlobs)
+        {
+            var descriptor = new DiagnosticDescriptor(
+                id: "TSG001",
+                title: "Missing TableStorage Reference",
+                messageFormat: "The TableStorage or TableStorage.Blobs assembly reference is required for TableContext generation.",
+                category: "TableStorage.SourceGenerators",
+                DiagnosticSeverity.Error,
+                isEnabledByDefault: true
+            );
 
-    private static void Execute(Compilation compilation, ImmutableArray<ClassDeclarationSyntax> classes, SourceProductionContext context)
-    {
+            context.ReportDiagnostic(Diagnostic.Create(descriptor, Location.None));
+            return;
+        }
+
         if (classes.IsDefaultOrEmpty)
         {
             // nothing to do yet
@@ -82,7 +91,7 @@ namespace TableStorage
         if (classesToGenerate.Count > 0)
         {
             // generate the source code and add it to the output
-            foreach ((string name, string result) in GenerateTableContextClasses(classesToGenerate))
+            foreach ((string name, string result) in GenerateTableContextClasses(classesToGenerate, hasTables, hasBlobs))
             {
                 context.AddSource(name + ".g.cs", SourceText.From(result, Encoding.UTF8));
             }
@@ -92,14 +101,7 @@ namespace TableStorage
     private static List<ContextClassToGenerate> GetTypesToGenerate(Compilation compilation, IEnumerable<ClassDeclarationSyntax> classes, CancellationToken ct)
     {
         // Create a list to hold our output
-        var classesToGenerate = new List<ContextClassToGenerate>();
-
-        // Get the semantic representation of our marker attribute 
-        INamedTypeSymbol? contextAttribute = compilation.GetTypeByMetadataName("TableStorage.TableContextAttribute");
-        if (contextAttribute is null)
-        {
-            return classesToGenerate;
-        }
+        List<ContextClassToGenerate> classesToGenerate = [];
 
         foreach (ClassDeclarationSyntax classDeclarationSyntax in classes)
         {
@@ -138,7 +140,7 @@ namespace TableStorage
         return classesToGenerate;
     }
 
-    public static IEnumerable<(string name, string content)> GenerateTableContextClasses(List<ContextClassToGenerate> classesToGenerate)
+    public static IEnumerable<(string name, string content)> GenerateTableContextClasses(List<ContextClassToGenerate> classesToGenerate, bool hasTables, bool hasBlobs)
     {
         StringBuilder contextBuilder = new();
 
@@ -150,13 +152,13 @@ using TableStorage;
 using System;
 ");
 
-            GenerateContext(contextBuilder, classToGenerate);
+            GenerateContext(contextBuilder, classToGenerate, hasTables, hasBlobs);
 
             yield return (classToGenerate.Namespace + "." + classToGenerate.Name, contextBuilder.ToString());
         }
     }
 
-    private static void GenerateContext(StringBuilder sb, ContextClassToGenerate classToGenerate)
+    private static void GenerateContext(StringBuilder sb, ContextClassToGenerate classToGenerate, bool hasTables, bool hasBlobs)
     {
         if (!string.IsNullOrEmpty(classToGenerate.Namespace))
         {
@@ -170,15 +172,12 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
     {
         public static IServiceCollection Add").Append(classToGenerate.Name).Append(@"(this IServiceCollection services, string connectionString");
 
-        bool hasTableSets = classToGenerate.Members.Any(x => x.SetType is "TableSet");
-        bool hasBlobSets = classToGenerate.Members.Any(x => x.SetType is "BlobSet" or "AppendBlobSet");
-
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(", Action<TableStorage.TableOptions> configure = null");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(", Action<TableStorage.BlobOptions> configureBlobs = null");
         }
@@ -187,12 +186,12 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         {
             ").Append(classToGenerate.Name).Append(@".Register(services, connectionString");
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(", configure");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(", configureBlobs");
         }
@@ -205,13 +204,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
     partial class ").Append(classToGenerate.Name).Append(@"
     {");
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(@"
         private TableStorage.ICreator _creator { get; init; }");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(@"
         private TableStorage.IBlobCreator _blobCreator { get; init; }
@@ -241,7 +240,7 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         }");
         }
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(@"
 
@@ -274,14 +273,14 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@"
         private ").Append(classToGenerate.Name).Append('(');
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append("TableStorage.ICreator creator");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
-            if (hasTableSets)
+            if (hasTables)
             {
                 sb.Append(", ");
             }
@@ -292,13 +291,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@")
         {");
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(@"
             _creator = creator;");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(@"
             _blobCreator = blobCreator;");
@@ -328,12 +327,12 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
 
         public static void Register(IServiceCollection services, string connectionString");
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(", Action<TableStorage.TableOptions> configure");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(", Action<TableStorage.BlobOptions> configureBlobs");
         }
@@ -343,13 +342,13 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
             services.AddSingleton(s =>
             {");
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append(@"
                 TableStorage.ICreator creator = TableStorage.TableStorageSetup.BuildCreator(connectionString, configure);");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
             sb.Append(@"
                 TableStorage.IBlobCreator blobCreator = TableStorage.BlobStorageSetup.BuildCreator(connectionString, configureBlobs);");
@@ -358,14 +357,14 @@ namespace ").Append(classToGenerate.Namespace).Append(@"
         sb.Append(@"
                 return new ").Append(classToGenerate.Name).Append('(');
 
-        if (hasTableSets)
+        if (hasTables)
         {
             sb.Append("creator");
         }
 
-        if (hasBlobSets)
+        if (hasBlobs)
         {
-            if (hasTableSets)
+            if (hasTables)
             {
                 sb.Append(", ");
             }

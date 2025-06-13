@@ -9,16 +9,20 @@
 	</PropertyGroup>
 	
 	<ItemGroup>
+		<None Update="README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
 		<None Update="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
+		<None Include="..\TableStorage.Blobs\TableStorage.Blobs.props" Pack="true" PackagePath="build\TableStorage.Blobs.RuntimeCompilations.props" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<PackageReference Include="FastExpressionCompiler" Version="[5.1.1,)" />
 		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" PackageVersion="[5.1,6)" />
 	</ItemGroup>
-
 </Project>

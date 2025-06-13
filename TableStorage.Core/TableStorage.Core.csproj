@@ -8,6 +8,10 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Update="README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
 		
 		<None Update="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
@@ -16,7 +20,8 @@
 		</None>
 
 		<None Include="$(SolutionDir)\TableStorage.SourceGenerators\bin\$(Configuration)\$(TargetFramework)\TableStorage.SourceGenerators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
-		<None Include="TableStorage.props" />
+
+		<None Include="TableStorage.Core.props" Pack="true" PackagePath="build\TableStorage.Core.props" />
 	</ItemGroup>
 
 	<ItemGroup>

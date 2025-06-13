@@ -1,0 +1,5 @@
+<Project>
+	<PropertyGroup>
+		<DefineConstants>$(DefineConstants);TABLESTORAGE</DefineConstants>
+	</PropertyGroup>
+</Project>

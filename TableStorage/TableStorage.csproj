@@ -17,6 +17,7 @@
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
+		<None Include="TableStorage.props" Pack="true" PackagePath="build\TableStorage.props" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -28,7 +29,7 @@
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[8.0.0,)" />
 		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="[3.1.0, )" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="[3.1.0, )" />
-		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.13.2">
+		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="17.14.15">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
