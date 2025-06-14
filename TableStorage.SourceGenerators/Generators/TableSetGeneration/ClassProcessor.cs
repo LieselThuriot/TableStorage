@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using TableStorage.SourceGenerators.Generators.TableSetGeneration.AttributeProcessing;
 using TableStorage.SourceGenerators.Models;
+using TableStorage.SourceGenerators.Utilities;
 
 namespace TableStorage.SourceGenerators.Generators.TableSetGeneration;
 
@@ -62,40 +63,12 @@ internal static class ClassProcessor
             withChangeTracking, 
             partitionKeyProxy ?? "null", 
             rowKeyProxy ?? "null", 
-            ct);
-
-        return new ClassToGenerate(
+            ct);        return new ClassToGenerate(
             classSymbol.Name, 
             classSymbol.ContainingNamespace.ToDisplayString(), 
-            members, 
-            prettyMembers, 
+            new EquatableArray<MemberToGenerate>([.. members]), 
+            new EquatableArray<PrettyMemberToGenerate>([.. prettyMembers]), 
             withBlobSupport, 
             withTablesSupport);
-    }
-
-    /// <summary>
-    /// Processes multiple class declarations to generate a list of ClassToGenerate instances.
-    /// </summary>
-    /// <param name="compilation">The compilation context.</param>
-    /// <param name="classes">The class declarations to process.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of successfully processed classes.</returns>
-    public static List<ClassToGenerate> GetTypesToGenerate(
-        Compilation compilation, 
-        IEnumerable<ClassDeclarationSyntax> classes, 
-        CancellationToken ct)
-    {
-        List<ClassToGenerate> classesToGenerate = [];
-
-        foreach (ClassDeclarationSyntax classDeclarationSyntax in classes)
-        {
-            var classToGen = ProcessClassDeclaration(compilation, classDeclarationSyntax, ct);
-            if (classToGen != null)
-            {
-                classesToGenerate.Add(classToGen.Value);
-            }
-        }
-
-        return classesToGenerate;
     }
 }

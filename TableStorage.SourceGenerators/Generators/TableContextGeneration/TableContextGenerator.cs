@@ -1,6 +1,7 @@
 using System.Text;
 using TableStorage.SourceGenerators.Generators.TableSetGeneration.CodeGeneration;
 using TableStorage.SourceGenerators.Models;
+using TableStorage.SourceGenerators.Utilities;
 
 namespace TableStorage.SourceGenerators.Generators.TableContextGeneration;
 
@@ -18,7 +19,7 @@ internal static class TableContextGenerator
     /// <param name="hasBlobs">Whether blob support is available.</param>
     /// <returns>An enumerable of (name, code) pairs for each generated class.</returns>
     public static IEnumerable<(string name, string content)> GenerateTableContextClasses(
-        List<ContextClassToGenerate> classesToGenerate, 
+        EquatableArray<ContextClassToGenerate> classesToGenerate, 
         bool hasTables, 
         bool hasBlobs)
     {

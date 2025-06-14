@@ -1,3 +1,5 @@
+using TableStorage.SourceGenerators.Utilities;
+
 namespace TableStorage.SourceGenerators.Models;
 
 /// <summary>
@@ -11,7 +13,7 @@ internal readonly struct ModelContext(
     PrettyMemberToGenerate partitionKeyProxy, 
     PrettyMemberToGenerate rowKeyProxy, 
     string realPartitionKey, 
-    string realRowKey)
+    string realRowKey) : IEquatable<ModelContext>
 {
     /// <summary>
     /// Indicates whether change tracking is enabled for this model.
@@ -47,4 +49,31 @@ internal readonly struct ModelContext(
     /// The actual row key property name to use.
     /// </summary>
     public readonly string RealRowKey = realRowKey;
+
+    public bool Equals(ModelContext other)
+    {
+        return HasChangeTracking == other.HasChangeTracking && 
+               HasPartitionKeyProxy == other.HasPartitionKeyProxy && 
+               HasRowKeyProxy == other.HasRowKeyProxy && 
+               PartitionKeyProxy.Equals(other.PartitionKeyProxy) && 
+               RowKeyProxy.Equals(other.RowKeyProxy) && 
+               RealPartitionKey == other.RealPartitionKey && 
+               RealRowKey == other.RealRowKey;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return obj is ModelContext other && Equals(other);
+    }    public override int GetHashCode()
+    {
+        var hashCode = HashCode.Create();
+        hashCode.Add(HasChangeTracking);
+        hashCode.Add(HasPartitionKeyProxy);
+        hashCode.Add(HasRowKeyProxy);
+        hashCode.Add(PartitionKeyProxy);
+        hashCode.Add(RowKeyProxy);
+        hashCode.Add(RealPartitionKey);
+        hashCode.Add(RealRowKey);
+        return hashCode.ToHashCode();
+    }
 }

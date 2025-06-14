@@ -2,6 +2,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using System.Collections.Immutable;
 using TableStorage.SourceGenerators.Models;
+using TableStorage.SourceGenerators.Utilities;
 
 namespace TableStorage.SourceGenerators.Generators.TableContextGeneration;
 
@@ -11,39 +12,13 @@ namespace TableStorage.SourceGenerators.Generators.TableContextGeneration;
 internal static class TableContextClassProcessor
 {
     /// <summary>
-    /// Processes multiple class declarations to generate a list of ContextClassToGenerate instances.
-    /// </summary>
-    /// <param name="compilation">The compilation context.</param>
-    /// <param name="classes">The class declarations to process.</param>
-    /// <param name="ct">Cancellation token.</param>
-    /// <returns>List of successfully processed table context classes.</returns>
-    public static List<ContextClassToGenerate> GetTypesToGenerate(
-        Compilation compilation, 
-        IEnumerable<ClassDeclarationSyntax> classes, 
-        CancellationToken ct)
-    {
-        List<ContextClassToGenerate> classesToGenerate = [];
-
-        foreach (ClassDeclarationSyntax classDeclarationSyntax in classes)
-        {
-            var classToGen = ProcessClassDeclaration(compilation, classDeclarationSyntax, ct);
-            if (classToGen != null)
-            {
-                classesToGenerate.Add(classToGen.Value);
-            }
-        }
-
-        return classesToGenerate;
-    }
-
-    /// <summary>
     /// Processes a single table context class declaration to create a ContextClassToGenerate instance.
     /// </summary>
     /// <param name="compilation">The compilation context.</param>
     /// <param name="classDeclarationSyntax">The class declaration to process.</param>
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A ContextClassToGenerate instance, or null if processing failed.</returns>
-    private static ContextClassToGenerate? ProcessClassDeclaration(
+    public static ContextClassToGenerate? ProcessClassDeclaration(
         Compilation compilation, 
         ClassDeclarationSyntax classDeclarationSyntax, 
         CancellationToken ct)
@@ -74,11 +49,9 @@ internal static class TableContextClassProcessor
                         property.Type.Name));
                 }
             }
-        }
-
-        return new ContextClassToGenerate(
+        }        return new ContextClassToGenerate(
             classSymbol.Name, 
             classSymbol.ContainingNamespace.ToDisplayString(), 
-            members);
+            new EquatableArray<ContextMemberToGenerate>([.. members]));
     }
 }

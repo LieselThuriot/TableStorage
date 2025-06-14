@@ -1,5 +1,6 @@
 using System.Text;
 using TableStorage.SourceGenerators.Models;
+using TableStorage.SourceGenerators.Utilities;
 
 namespace TableStorage.SourceGenerators.Generators.TableSetGeneration.CodeGeneration;
 
@@ -37,7 +38,7 @@ internal static class ModelGenerator
     /// <param name="tableStorageSerializerContext">The serializer context for AOT.</param>
     /// <returns>An enumerable of (name, code) pairs for each generated class.</returns>
     public static IEnumerable<(string name, string result)> GenerateTableContextClasses(
-        List<ClassToGenerate> classesToGenerate, 
+        EquatableArray<ClassToGenerate> classesToGenerate, 
         bool publishAot, 
         string? tableStorageSerializerContext)
     {
