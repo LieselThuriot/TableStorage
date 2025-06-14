@@ -20,10 +20,10 @@ internal static class ValidationHelper
 
         if (!hasTableStorage && !hasTableStorageBlobs)
         {
-            var descriptor = new DiagnosticDescriptor(
+            DiagnosticDescriptor descriptor = new(
                 id: "TSG001",
                 title: "Missing TableStorage Reference",
-                messageFormat: "The TableStorage or TableStorage.Blobs assembly reference is required for TableContext generation.",
+                messageFormat: "The TableStorage or TableStorage.Blobs assembly reference is required for TableContext generation",
                 category: "TableStorage.SourceGenerators",
                 DiagnosticSeverity.Error,
                 isEnabledByDefault: true
