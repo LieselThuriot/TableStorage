@@ -3,8 +3,8 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Collections.Immutable;
 using System.Text;
-using TableStorage.SourceGenerators.Generators;
-using TableStorage.SourceGenerators.Generators.CodeGeneration;
+using TableStorage.SourceGenerators.Generators.TableSetGeneration;
+using TableStorage.SourceGenerators.Generators.TableSetGeneration.CodeGeneration;
 using TableStorage.SourceGenerators.Models;
 using TableStorage.SourceGenerators.Utilities;
 

@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using TableStorage.SourceGenerators.Models;
 using TableStorage.SourceGenerators.Utilities;
 
-namespace TableStorage.SourceGenerators.Generators.AttributeProcessing;
+namespace TableStorage.SourceGenerators.Generators.TableSetGeneration.AttributeProcessing;
 
 /// <summary>
 /// Handles processing of TableStorage attributes on class declarations.

@@ -1,9 +1,9 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using TableStorage.SourceGenerators.Generators.AttributeProcessing;
+using TableStorage.SourceGenerators.Generators.TableSetGeneration.AttributeProcessing;
 using TableStorage.SourceGenerators.Models;
 
-namespace TableStorage.SourceGenerators.Generators;
+namespace TableStorage.SourceGenerators.Generators.TableSetGeneration;
 
 /// <summary>
 /// Processes class declarations to extract configuration and generate ClassToGenerate instances.

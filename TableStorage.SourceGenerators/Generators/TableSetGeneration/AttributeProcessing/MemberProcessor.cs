@@ -3,7 +3,7 @@ using System.Collections.Immutable;
 using TableStorage.SourceGenerators.Models;
 using TableStorage.SourceGenerators.Utilities;
 
-namespace TableStorage.SourceGenerators.Generators.AttributeProcessing;
+namespace TableStorage.SourceGenerators.Generators.TableSetGeneration.AttributeProcessing;
 
 /// <summary>
 /// Processes class members to determine which properties should be generated and how.

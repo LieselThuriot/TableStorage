@@ -1,5 +1,5 @@
 using System.Text;
-using TableStorage.SourceGenerators.Generators.CodeGeneration;
+using TableStorage.SourceGenerators.Generators.TableSetGeneration.CodeGeneration;
 using TableStorage.SourceGenerators.Models;
 
 namespace TableStorage.SourceGenerators.Generators.TableContextGeneration;

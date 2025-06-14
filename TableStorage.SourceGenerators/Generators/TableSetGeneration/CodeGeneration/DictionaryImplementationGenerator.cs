@@ -2,7 +2,7 @@ using Microsoft.CodeAnalysis;
 using System.Text;
 using TableStorage.SourceGenerators.Models;
 
-namespace TableStorage.SourceGenerators.Generators.CodeGeneration;
+namespace TableStorage.SourceGenerators.Generators.TableSetGeneration.CodeGeneration;
 
 /// <summary>
 /// Generates IDictionary implementation for table entities.
