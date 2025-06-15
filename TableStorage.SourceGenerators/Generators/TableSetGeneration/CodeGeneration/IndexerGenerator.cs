@@ -31,7 +31,7 @@ internal static class IndexerGenerator
             GenerateIndexerSetter(sb, classToGenerate, context, publishAot, tableStorageSerializerContext);
         }
         
-        sb.AppendLine("        }");
+        sb.AppendLine().Append("        }");
     }
 
     private static void GenerateIndexerGetter(StringBuilder sb, ClassToGenerate classToGenerate, in ModelContext context)

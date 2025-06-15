@@ -108,7 +108,7 @@ internal static class PropertyGenerator
 
         if (partial)
         {
-            sb.Append(" { get => _").Append(item.Name).Append("; set => _").Append(item.Name).Append(" = value; }")
+            sb.Append(" { get => _").Append(item.Name).Append("; set => _").Append(item.Name).AppendLine(" = value; }")
               .Append("        private string _").Append(item.Name).Append(';');
         }
         else
