@@ -1,5 +1,4 @@
-﻿using Azure.Storage.Blobs;
-using Azure.Storage.Blobs.Models;
+﻿using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -7,12 +6,11 @@ using TableStorage.Visitors;
 
 namespace TableStorage;
 
-internal readonly struct CompiledBlobQueryHandler<T, TClient>(BaseBlobSet<T, TClient> blobset, LazyAsync<BlobContainerClient> containerClient)
+internal readonly struct CompiledBlobQueryHandler<T, TClient>(BaseBlobSet<T, TClient> blobset)
     where TClient : BlobBaseClient
     where T : IBlobEntity
 {
     private readonly BaseBlobSet<T, TClient> _blobset = blobset;
-    private readonly LazyAsync<BlobContainerClient> _containerClient = containerClient;
 
     public IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> QueryAsync(Expression<Func<T, bool>>? filter, CancellationToken cancellationToken = default)
     {
@@ -82,28 +80,30 @@ internal readonly struct CompiledBlobQueryHandler<T, TClient>(BaseBlobSet<T, TCl
         var visitedFilter = (Expression<Func<BlobTagAccessor, bool>>)visitor.Visit(filter);
         LazyFilteringExpression<BlobTagAccessor> compiledFilter = visitedFilter;
 
-        BlobContainerClient container = await _containerClient;
-        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
+        await foreach (BlobItem blob in _blobset.GetAllBlobItemsAsync(cancellationToken))
         {
             BlobTagAccessor tags = new(blob.Tags);
 
-            if (compiledFilter.Invoke(tags))
+            if (!compiledFilter.Invoke(tags))
             {
-                TClient client = _blobset.GetClient(container, blob.Name);
-                BaseBlobSet<T, TClient> set = _blobset;
-                LazyAsync<T?> entity = new(() => set.DownloadAsync(client, cancellationToken));
-
-                if (!tagOnlyFilter)
-                {
-                    var entityResult = await entity;
-                    if (entityResult is null || !originalCompiledFilter.Invoke(entityResult))
-                    {
-                        continue;
-                    }
-                }
-
-                yield return (client, entity);
+                continue;
             }
+
+            TClient client = await _blobset.GetClient(blob.Name);
+
+            BaseBlobSet<T, TClient> set = _blobset;
+            LazyAsync<T?> entity = new(() => set.DownloadAsync(client, cancellationToken));
+
+            if (!tagOnlyFilter)
+            {
+                var entityResult = await entity;
+                if (entityResult is null || !originalCompiledFilter.Invoke(entityResult))
+                {
+                    continue;
+                }
+            }
+
+            yield return (client, entity);
         }
     }
 }

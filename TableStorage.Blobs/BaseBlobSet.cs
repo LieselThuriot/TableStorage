@@ -2,6 +2,7 @@
 using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 
 namespace TableStorage;
 
@@ -54,11 +55,16 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     protected Task<TClient> GetClient(IBlobEntity entity) => GetClient(entity.PartitionKey, entity.RowKey);
 
-    protected async Task<TClient> GetClient(string partitionKey, string rowKey)
+    protected Task<TClient> GetClient(string partitionKey, string rowKey)
     {
         string id = BlobId.Get(partitionKey, rowKey);
-        BlobContainerClient client = await _containerClient;
-        return GetClient(client, id);
+        return GetClient(id);
+    }
+
+    protected internal async Task<TClient> GetClient(string id)
+    {
+        var container = await _containerClient;
+        return GetClient(container, id);
     }
 
     protected internal abstract TClient GetClient(BlobContainerClient containerClient, string id);
@@ -302,10 +308,27 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     {
         BlobContainerClient container = await _containerClient;
 
-        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
+        await foreach (BlobItem blob in GetAllBlobItemsAsync(cancellationToken))
         {
             TClient client = GetClient(container, blob.Name);
             yield return (client, new(() => DownloadAsync(client, cancellationToken)));
+        }
+    }
+
+    internal async IAsyncEnumerable<BlobItem> GetAllBlobItemsAsync([EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        BlobContainerClient container = await _containerClient;
+        await foreach (BlobItem blob in GetAllBlobItemsAsync(container, cancellationToken))
+        {
+            yield return blob;
+        }
+    }
+
+    private static async IAsyncEnumerable<BlobItem> GetAllBlobItemsAsync(BlobContainerClient container, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
+        {
+            yield return blob;
         }
     }
 

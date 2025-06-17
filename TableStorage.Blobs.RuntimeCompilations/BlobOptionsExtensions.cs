@@ -21,7 +21,7 @@ public static class BlobOptionsExtensions
             where T : IBlobEntity
             where TClient : BlobBaseClient
         {
-            BlobQueryHandler<T, TClient> handler = new(baseBlobSet);
+            CompiledBlobQueryHandler<T, TClient> handler = new(baseBlobSet);
 
             await foreach ((TClient client, LazyAsync<T?> entity) result in handler.QueryAsync(filter, cancellationToken))
             {
