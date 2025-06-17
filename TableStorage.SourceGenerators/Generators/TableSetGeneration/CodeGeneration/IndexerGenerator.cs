@@ -1,4 +1,3 @@
-using Microsoft.CodeAnalysis;
 using System.Text;
 using TableStorage.SourceGenerators.Models;
 

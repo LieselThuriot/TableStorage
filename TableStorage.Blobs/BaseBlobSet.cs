@@ -2,11 +2,10 @@
 using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
-using TableStorage.Visitors;
 
 namespace TableStorage;
 
-public readonly struct BlobId(string partitionKey, string rowKey)
+internal readonly struct BlobId(string partitionKey, string rowKey)
 {
     public string PartitionKey { get; } = partitionKey;
     public string RowKey { get; } = rowKey;
@@ -73,7 +72,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
             throw new KeyNotFoundException($"Entity with PartitionKey '{partitionKey}' and RowKey = '{rowKey}' was not found.");
         }
 
-        return await Download(blob, cancellationToken);
+        return await DownloadAsync(blob, cancellationToken);
     }
 
     public async Task<T?> GetEntityOrDefaultAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
@@ -91,7 +90,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
             return (false, default);
         }
 
-        T? result = await Download(blob, cancellationToken);
+        T? result = await DownloadAsync(blob, cancellationToken);
         return (result is not null, result);
     }
 
@@ -182,12 +181,95 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         return tags;
     }
 
-    internal async Task<T?> Download(TClient blob, CancellationToken cancellationToken)
+    internal async Task<T?> DownloadAsync(TClient blob, CancellationToken cancellationToken)
     {
-        using MemoryStream stream = new();
+        using Stream stream = await GetStreamAsync(blob, cancellationToken);
+        return await Options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
+    }
+
+    private static async Task<Stream> GetStreamAsync(TClient blob, CancellationToken cancellationToken)
+    {
+        MemoryStream stream = new();
         await blob.DownloadToAsync(stream, cancellationToken);
         stream.Position = 0;
-        return await Options.Serializer.DeserializeAsync<T>(Name, stream, cancellationToken);
+        return stream;
+    }
+
+    public async Task<(bool success, Stream? stream)> TryGetStreamAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
+    {
+        TClient blob = await GetClient(partitionKey, rowKey);
+        
+        if (!await blob.ExistsAsync(cancellationToken))
+        {
+            return (false, null);
+        }
+
+        Stream stream = await GetStreamAsync(blob, cancellationToken);
+        return (true, stream);
+    }
+
+    public async Task<Stream> GetStreamAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
+    {
+        var (success, stream) = await TryGetStreamAsync(partitionKey, rowKey, cancellationToken);
+
+        if (!success)
+        {
+            throw new KeyNotFoundException($"Entity with PartitionKey '{partitionKey}' and RowKey = '{rowKey}' was not found.");
+        }
+
+        return stream!;
+    }
+
+    public async IAsyncEnumerable<string> FindRowsAsync(string partition, [EnumeratorCancellation]CancellationToken cancellationToken = default)
+    {
+        if (partition is null)
+        {
+            throw new ArgumentNullException(nameof(partition));
+        }
+
+        BlobContainerClient container = await _containerClient;
+
+        if (Options.UseTags)
+        {
+            string filter = $"{PartitionTagConstant}='{partition}'";
+            await foreach (TaggedBlobItem blob in container.FindBlobsByTagsAsync(filter, cancellationToken))
+            {
+                yield return BlobId.Parse(blob.BlobName).RowKey;
+            }
+        }
+        else
+        {
+            await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, prefix: partition + '/', cancellationToken: cancellationToken))
+            {
+                yield return BlobId.Parse(blob.Name).RowKey;
+            }
+        }
+    }
+
+    public async IAsyncEnumerable<string> FindPartitionsAsync(string row, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (row is null)
+        {
+            throw new ArgumentNullException(nameof(row));
+        }
+
+        BlobContainerClient container = await _containerClient;
+
+        if (Options.UseTags)
+        {
+            string filter = $"{RowTagConstant}='{row}'";
+            await foreach (TaggedBlobItem blob in container.FindBlobsByTagsAsync(filter, cancellationToken))
+            {
+                yield return BlobId.Parse(blob.BlobName).PartitionKey;
+            }
+        }
+        else
+        {
+            await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.None, BlobStates.None, cancellationToken: cancellationToken))
+            {
+                yield return BlobId.Parse(blob.Name).PartitionKey;
+            }
+        }
     }
 
     public IAsyncEnumerator<T> GetAsyncEnumerator(CancellationToken cancellationToken = default) => QueryAsync(cancellationToken).GetAsyncEnumerator(cancellationToken);
@@ -223,7 +305,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         await foreach (BlobItem blob in container.GetBlobsAsync(BlobTraits.Tags, BlobStates.None, cancellationToken: cancellationToken))
         {
             TClient client = GetClient(container, blob.Name);
-            yield return (client, new(() => Download(client, cancellationToken)));
+            yield return (client, new(() => DownloadAsync(client, cancellationToken)));
         }
     }
 
@@ -239,7 +321,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         await foreach (TaggedBlobItem blob in container.FindBlobsByTagsAsync(filter, cancellationToken))
         {
             TClient client = GetClient(container, blob.BlobName);
-            yield return (client, new(() => Download(client, cancellationToken)));
+            yield return (client, new(() => DownloadAsync(client, cancellationToken)));
         }
     }
 }

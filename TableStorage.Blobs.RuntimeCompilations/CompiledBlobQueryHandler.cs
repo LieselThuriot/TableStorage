@@ -91,7 +91,7 @@ internal readonly struct CompiledBlobQueryHandler<T, TClient>(BaseBlobSet<T, TCl
             {
                 TClient client = _blobset.GetClient(container, blob.Name);
                 BaseBlobSet<T, TClient> set = _blobset;
-                LazyAsync<T?> entity = new(() => set.Download(client, cancellationToken));
+                LazyAsync<T?> entity = new(() => set.DownloadAsync(client, cancellationToken));
 
                 if (!tagOnlyFilter)
                 {
