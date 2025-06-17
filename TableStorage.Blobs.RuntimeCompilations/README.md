@@ -13,6 +13,17 @@ Provides runtime LINQ expression compilation and advanced query helpers for work
 dotnet add package TableStorage.Blobs.RuntimeCompilations
 ```
 
+To enable this package, you must call `EnableCompilationAtRuntime()` when adding your TableContext to the DI:
+
+```csharp
+services.AddMyTableContext(connectionString,
+    configureBlobs: x =>
+    {
+        x.CreateContainerIfNotExists = true;
+        x.EnableCompilationAtRuntime();
+    });
+```
+
 ## See Also
 
 - [TableStorage.Blobs](https://www.nuget.org/packages/TableStorage.Blobs)
