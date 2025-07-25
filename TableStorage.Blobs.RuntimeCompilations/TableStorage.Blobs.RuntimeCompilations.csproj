@@ -23,6 +23,6 @@
 
 	<ItemGroup>
 		<PackageReference Include="FastExpressionCompiler" Version="[5.1.1,)" />
-		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" PackageVersion="[5.1,6)" />
+		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" PackageVersion="[^,$)" />
 	</ItemGroup>
 </Project>

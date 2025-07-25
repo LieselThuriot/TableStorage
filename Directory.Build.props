@@ -17,29 +17,24 @@
 		<Copyright>Liesel Thuriot</Copyright>
 		<Authors>Liesel Thuriot</Authors>
 		<MajorMinorVersion>5.1</MajorMinorVersion>
+		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
+		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
 		<VersionSuffix>preview.2</VersionSuffix>
 	</PropertyGroup>
-
-	<!--<ItemGroup>
-		<PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="AsyncFixer">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="roslynator.analyzers">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Roslynator.Formatting.Analyzers">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-	</ItemGroup>-->
+	
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
 	</ItemGroup>
+
+	<Target Name="UseExplicitPackageVersions" BeforeTargets="GenerateNuspec">
+		<ItemGroup>
+			<_ProjectReferencesWithVersions Condition="'%(FullPath)' != ''">
+				<PackageVersion>@(ProjectReference->'%(PackageVersion)')</PackageVersion>
+			</_ProjectReferencesWithVersions>
+			<_ProjectReferencesWithVersions Condition="'%(Identity)' != '' And '%(PackageVersion)' != ''">
+				<ProjectVersion>$([System.String]::new('%(PackageVersion)').Replace('~',%(ProjectVersion)).Replace('^',$(MajorMinorVersion)).Replace('`',$(NextMajorMinorVersion)).Replace('$',$(NextMajorVersion)))</ProjectVersion>
+			</_ProjectReferencesWithVersions>
+		</ItemGroup>
+	</Target>
 </Project>

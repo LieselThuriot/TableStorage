@@ -26,7 +26,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[5.1,6)" />
+		<ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[^,$)" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Data.Tables" />
 	</ItemGroup>
