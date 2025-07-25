@@ -17,7 +17,7 @@
 		<Copyright>Liesel Thuriot</Copyright>
 		<Authors>Liesel Thuriot</Authors>
 		<MajorMinorVersion>5.1</MajorMinorVersion>
-		<VersionSuffix>preview.1</VersionSuffix>
+		<VersionSuffix>preview.2</VersionSuffix>
 	</PropertyGroup>
 
 	<!--<ItemGroup>
