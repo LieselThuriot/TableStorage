@@ -19,9 +19,11 @@
 		<MajorMinorVersion>5.1</MajorMinorVersion>
 		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
 		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
-		<VersionSuffix>preview.2</VersionSuffix>
+		<VersionSuffix>preview.3</VersionSuffix>
+		<DashedVersionSuffix Condition="'$(VersionSuffix)' != ''">-$(VersionSuffix)</DashedVersionSuffix>
+		<MinDashedVersionSuffix Condition="'$(VersionSuffix)' != ''">-preview.1</MinDashedVersionSuffix>
 	</PropertyGroup>
-	
+
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
@@ -33,7 +35,7 @@
 				<PackageVersion>@(ProjectReference->'%(PackageVersion)')</PackageVersion>
 			</_ProjectReferencesWithVersions>
 			<_ProjectReferencesWithVersions Condition="'%(Identity)' != '' And '%(PackageVersion)' != ''">
-				<ProjectVersion>$([System.String]::new('%(PackageVersion)').Replace('~',%(ProjectVersion)).Replace('^',$(MajorMinorVersion)).Replace('`',$(NextMajorMinorVersion)).Replace('$',$(NextMajorVersion)))</ProjectVersion>
+				<ProjectVersion>$([System.String]::new('%(PackageVersion)').Replace('~',%(ProjectVersion)).Replace('^',$(MajorMinorVersion)$(MinDashedVersionSuffix)).Replace('`',$(NextMajorMinorVersion)).Replace('$',$(NextMajorVersion)))</ProjectVersion>
 			</_ProjectReferencesWithVersions>
 		</ItemGroup>
 	</Target>
