@@ -68,7 +68,7 @@ public abstract class TableSet<T> : IStorageSet<T>
         }
     }
 
-    public Task UpdateEntityAsync(T entity, CancellationToken cancellationToken = default) => UpdateEntityAsync(entity, ETag.All, null, cancellationToken);
+    public Task UpdateEntityAsync(T entity, CancellationToken cancellationToken = default) => UpdateEntityAsync(entity, entity.ETag, null, cancellationToken);
 
     public abstract Task UpdateEntityAsync(T entity, ETag ifMatch, TableUpdateMode? mode, CancellationToken cancellationToken = default);
 
@@ -183,7 +183,7 @@ public abstract class TableSet<T> : IStorageSet<T>
     internal async Task UpdateAsync(ITableEntity entity, CancellationToken cancellationToken)
     {
         TableClient client = await LazyClient;
-        await client.UpdateEntityAsync(entity, ETag.All, TableUpdateMode.Merge, cancellationToken);
+        await client.UpdateEntityAsync(entity, entity.ETag, TableUpdateMode.Merge, cancellationToken);
     }
 
     internal async Task UpsertAsync(ITableEntity entity, CancellationToken cancellationToken)

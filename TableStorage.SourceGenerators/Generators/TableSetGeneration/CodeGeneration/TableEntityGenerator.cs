@@ -24,10 +24,12 @@ internal static class TableEntityGenerator
         }
         else
         {
-            sb.Append("public string PartitionKey { get; set; }");
+            sb.Append(@"[System.Runtime.Serialization.IgnoreDataMember]
+        public string PartitionKey { get; set; }");
         }
 
         sb.Append(@"
+
         ");
 
         if (context.HasRowKeyProxy)
@@ -36,11 +38,16 @@ internal static class TableEntityGenerator
         }
         else
         {
-            sb.Append("public string RowKey { get; set; }");
+            sb.Append(@"[System.Runtime.Serialization.IgnoreDataMember]
+        public string RowKey { get; set; }");
         }
 
         sb.Append(@"
+
+        [System.Runtime.Serialization.IgnoreDataMember]
         public DateTimeOffset? Timestamp { get; set; }
-        public Azure.ETag ETag { get; set; }");
+
+        [System.Runtime.Serialization.IgnoreDataMember]
+        public Azure.ETag ETag { get; set; } = Azure.ETag.All;");
     }
 }

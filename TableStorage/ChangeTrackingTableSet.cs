@@ -92,6 +92,6 @@ internal sealed class ChangeTrackingTableSet<T> : TableSet<T>
 
     protected override Task ExecuteInBulkAsync(IEnumerable<T> entities, TableTransactionActionType tableTransactionActionType, CancellationToken cancellationToken)
     {
-        return SubmitTransactionAsync(entities.Select(GetEntity).Select(x => new TableTransactionAction(tableTransactionActionType, x, ETag.All)), TransactionSafety.Enabled, cancellationToken);
+        return SubmitTransactionAsync(entities.Select(GetEntity).Select(x => new TableTransactionAction(tableTransactionActionType, x, x.ETag)), TransactionSafety.Enabled, cancellationToken);
     }
 }

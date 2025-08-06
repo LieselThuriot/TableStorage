@@ -74,6 +74,8 @@ internal static class FactoryGenerator
         public string PartitionKey { get; set; }");
         }
 
+        sb.AppendLine();
+
         if (context.HasRowKeyProxy)
         {
             sb.Append(@"
