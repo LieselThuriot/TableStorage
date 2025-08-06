@@ -44,12 +44,18 @@ public abstract class TableSet<T> : IStorageSet<T>
         return SubmitTransactionAsync(transactionActions, Options.TransactionSafety, cancellationToken);
     }
 
-    public virtual async Task SubmitTransactionAsync(IEnumerable<TableTransactionAction> transactionActions, TransactionSafety transactionSafety, CancellationToken cancellationToken = default)
+    public virtual Task SubmitTransactionAsync(IEnumerable<TableTransactionAction> transactionActions, TransactionSafety transactionSafety, CancellationToken cancellationToken = default)
     {
-        TableClient client = await LazyClient;
-
-        if (transactionSafety is TransactionSafety.Enabled)
+        return transactionSafety switch
         {
+            TransactionSafety.Enabled => SafelySubmit(),
+            TransactionSafety.Disabled => UnsafelySubmit(),
+            _ => throw new NotSupportedException(),
+        };
+
+        async Task SafelySubmit()
+        {
+            TableClient client = await LazyClient;
             foreach (IGrouping<string, TableTransactionAction>? partition in transactionActions.GroupBy(x => x.Entity.PartitionKey))
             {
                 foreach (IEnumerable<TableTransactionAction> chunk in partition.Chunk(Options.TransactionChunkSize))
@@ -58,13 +64,11 @@ public abstract class TableSet<T> : IStorageSet<T>
                 }
             }
         }
-        else if (transactionSafety is TransactionSafety.Disabled)
+
+        async Task UnsafelySubmit()
         {
+            TableClient client = await LazyClient;
             await client.SubmitTransactionAsync(transactionActions, cancellationToken);
-        }
-        else
-        {
-            throw new NotSupportedException();
         }
     }
 

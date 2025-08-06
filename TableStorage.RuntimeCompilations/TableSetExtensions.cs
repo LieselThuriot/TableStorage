@@ -31,6 +31,12 @@ public static class TableSetExtensions
         where T : class, ITableEntity, new()
     {
         TableEntity entity = VisitForMergeAndValidate(table.PartitionKeyProxy, table.RowKeyProxy, exp);
+        
+        if (entity.ETag == default)
+        {
+            entity.ETag = ETag.All;
+        }
+
         return table.UpdateAsync(entity, cancellationToken);
     }
 

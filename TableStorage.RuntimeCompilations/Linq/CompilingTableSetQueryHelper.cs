@@ -68,7 +68,8 @@ internal sealed class CompilingTableSetQueryHelper<T>
         TableEntity entity = new(visitor.Entity)
         {
             PartitionKey = current.PartitionKey,
-            RowKey = current.RowKey
+            RowKey = current.RowKey,
+            ETag = current.ETag
         };
 
         if (visitor.IsComplex)
