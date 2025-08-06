@@ -46,14 +46,14 @@ namespace TableStorage
     {
     }
 }";    /// <summary>
-    /// Initializes the incremental generator by registering all the necessary providers and transformations.
-    /// This follows the best practices for incremental generators:
-    /// 1. Registers the attribute first in post-initialization
-    /// 2. Uses ForAttributeWithMetadataName for optimal performance  
-    /// 3. Separates compilation capabilities extraction for better caching
-    /// 4. Uses value-type data models throughout the pipeline
-    /// </summary>
-    /// <param name="context">The generator initialization context.</param>
+       /// Initializes the incremental generator by registering all the necessary providers and transformations.
+       /// This follows the best practices for incremental generators:
+       /// 1. Registers the attribute first in post-initialization
+       /// 2. Uses ForAttributeWithMetadataName for optimal performance  
+       /// 3. Separates compilation capabilities extraction for better caching
+       /// 4. Uses value-type data models throughout the pipeline
+       /// </summary>
+       /// <param name="context">The generator initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register the attribute source first - this runs once during initialization
@@ -88,16 +88,16 @@ namespace TableStorage
         context.RegisterSourceOutput(combinedData,
             static (spc, source) => ExecuteTableContextGeneration(source.Classes, source.Capabilities, spc));
     }    /// <summary>
-    /// Extracts table context class information from a GeneratorAttributeSyntaxContext.
-    /// This method is designed to extract all necessary data in the transform stage to avoid
-    /// keeping syntax nodes in the pipeline, which would break caching.
-    /// 
-    /// This bridges the new incremental generator approach with the existing extraction logic
-    /// while ensuring proper data model extraction for caching.
-    /// </summary>
-    /// <param name="context">The generator attribute syntax context containing the decorated node.</param>
-    /// <param name="cancellationToken">The cancellation token for operation cancellation.</param>
-    /// <returns>The extracted context class information, or null if extraction fails.</returns>
+         /// Extracts table context class information from a GeneratorAttributeSyntaxContext.
+         /// This method is designed to extract all necessary data in the transform stage to avoid
+         /// keeping syntax nodes in the pipeline, which would break caching.
+         /// 
+         /// This bridges the new incremental generator approach with the existing extraction logic
+         /// while ensuring proper data model extraction for caching.
+         /// </summary>
+         /// <param name="context">The generator attribute syntax context containing the decorated node.</param>
+         /// <param name="cancellationToken">The cancellation token for operation cancellation.</param>
+         /// <returns>The extracted context class information, or null if extraction fails.</returns>
     private static ContextClassToGenerate? ExtractTableContextClass(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         // Validate input - only process class declarations

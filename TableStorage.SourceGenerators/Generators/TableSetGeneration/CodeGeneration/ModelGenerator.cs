@@ -38,15 +38,15 @@ internal static class ModelGenerator
     /// <param name="tableStorageSerializerContext">The serializer context for AOT.</param>
     /// <returns>An enumerable of (name, code) pairs for each generated class.</returns>
     public static IEnumerable<(string name, string result)> GenerateTableContextClasses(
-        EquatableArray<ClassToGenerate> classesToGenerate, 
-        bool publishAot, 
+        EquatableArray<ClassToGenerate> classesToGenerate,
+        bool publishAot,
         string? tableStorageSerializerContext)
     {
         foreach (ClassToGenerate classToGenerate in classesToGenerate)
         {
             string modelResult = GenerateSingleTableSetClassString(classToGenerate, publishAot, tableStorageSerializerContext);
-            string fileName = string.IsNullOrEmpty(classToGenerate.Namespace) || classToGenerate.Namespace == "<global namespace>" 
-                ? classToGenerate.Name 
+            string fileName = string.IsNullOrEmpty(classToGenerate.Namespace) || classToGenerate.Namespace == "<global namespace>"
+                ? classToGenerate.Name
                 : classToGenerate.Namespace + "." + classToGenerate.Name;
             yield return (fileName, modelResult);
         }
@@ -74,44 +74,44 @@ using System;
     private static void GenerateModel(StringBuilder sb, ClassToGenerate classToGenerate, bool publishAot, string? tableStorageSerializerContext)
     {
         var modelContext = CodeGenerationBase.InitializeModelContext(classToGenerate);
-        
+
         // Generate namespace and class structure
         CodeGenerationBase.GenerateNamespaceStart(sb, classToGenerate.Namespace);
         CodeGenerationBase.GenerateClassSignature(sb, classToGenerate, modelContext);
-        
+
         // Generate factory methods and support features
         if (classToGenerate.WithTablesSupport)
         {
             FactoryGenerator.GenerateTableSetFactoryMethod(sb, classToGenerate, modelContext);
         }
-        
+
         if (classToGenerate.WithBlobSupport)
         {
             FactoryGenerator.GenerateBlobSupportMembers(sb, classToGenerate, modelContext);
         }
-        
+
         // Generate change tracking if enabled
         if (classToGenerate.WithTablesSupport && modelContext.HasChangeTracking)
         {
             ChangeTrackingGenerator.GenerateChangeTrackingSupport(sb, classToGenerate, modelContext);
         }
-        
+
         // Generate table entity members
         if (classToGenerate.WithTablesSupport)
         {
             TableEntityGenerator.GenerateTableEntityMembers(sb, modelContext);
         }
-        
+
         // Generate properties and indexer
         PropertyGenerator.GenerateClassProperties(sb, classToGenerate);
         IndexerGenerator.GenerateIndexerImplementation(sb, classToGenerate, modelContext, publishAot, tableStorageSerializerContext);
-        
+
         // Generate dictionary implementation for table support
         if (classToGenerate.WithTablesSupport)
         {
             DictionaryImplementationGenerator.GenerateDictionaryImplementation(sb, classToGenerate, modelContext);
         }
-        
+
         // Close class and namespace
         sb.Append(@"
     }

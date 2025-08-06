@@ -628,7 +628,7 @@ public sealed class HybridSerializer : IBlobSerializer
 
         if (table is "models5blobinjson")
         {
-            return (T)(object) await JsonSerializer.DeserializeAsync(entity, ModelSerializationContext.Default.Model5, cancellationToken);
+            return (T)(object)await JsonSerializer.DeserializeAsync(entity, ModelSerializationContext.Default.Model5, cancellationToken);
         }
 
         BinaryData data = await BinaryData.FromStreamAsync(entity, cancellationToken);

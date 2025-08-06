@@ -18,10 +18,10 @@ internal static class ValueConversionGenerator
     /// <param name="publishAot">Whether AOT publishing is enabled.</param>
     /// <param name="tableStorageSerializerContext">The serializer context for AOT.</param>
     public static void GenerateValueConversion(
-        StringBuilder sb, 
-        MemberToGenerate item, 
-        bool withBlobSupport, 
-        bool publishAot, 
+        StringBuilder sb,
+        MemberToGenerate item,
+        bool withBlobSupport,
+        bool publishAot,
         string? tableStorageSerializerContext)
     {
         // Begin cast
@@ -57,7 +57,7 @@ internal static class ValueConversionGenerator
         if (withBlobSupport)
         {
             sb.Append("value is System.Text.Json.JsonElement _").Append(item.Name).Append("JsonElement ? _").Append(item.Name).Append("JsonElement.GetDateTimeOffset() : ");
-            
+
             if (isNullable)
             {
                 sb.Append("value as DateTimeOffset?)?.DateTime");

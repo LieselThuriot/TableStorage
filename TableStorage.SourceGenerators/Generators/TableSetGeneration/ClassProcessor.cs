@@ -19,8 +19,8 @@ internal static class ClassProcessor
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A ClassToGenerate instance, or null if processing failed.</returns>
     public static ClassToGenerate? ProcessClassDeclaration(
-        Compilation compilation, 
-        ClassDeclarationSyntax classDeclarationSyntax, 
+        Compilation compilation,
+        ClassDeclarationSyntax classDeclarationSyntax,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -43,34 +43,34 @@ internal static class ClassProcessor
         }
 
         var (partitionKeyProxy, rowKeyProxy, prettyMembers) = AttributeProcessor.ProcessTableSetAttributeArguments(tableSetAttributeSyntax);
-        
+
         bool withBlobSupport = AttributeProcessor.GetArgumentValue(tableSetAttributeSyntax, "SupportBlobs") == "true";
         bool withTablesSupport = AttributeProcessor.GetArgumentValue(tableSetAttributeSyntax, "DisableTables") != "true";
         bool withChangeTracking = withTablesSupport && AttributeProcessor.GetArgumentValue(tableSetAttributeSyntax, "TrackChanges") == "true";
 
         List<MemberToGenerate> members = MemberProcessor.ProcessClassMembers(
-            classSymbol, 
-            prettyMembers, 
-            withChangeTracking, 
-            partitionKeyProxy ?? "null", 
-            rowKeyProxy ?? "null", 
+            classSymbol,
+            prettyMembers,
+            withChangeTracking,
+            partitionKeyProxy ?? "null",
+            rowKeyProxy ?? "null",
             ct);
-            
+
         AttributeProcessor.ProcessTableSetPropertyAttributes(
-            relevantAttributes, 
-            semanticModel, 
-            members, 
-            withChangeTracking, 
-            partitionKeyProxy ?? "null", 
-            rowKeyProxy ?? "null", 
+            relevantAttributes,
+            semanticModel,
+            members,
+            withChangeTracking,
+            partitionKeyProxy ?? "null",
+            rowKeyProxy ?? "null",
             ct);
-        
+
         return new ClassToGenerate(
-            classSymbol.Name, 
-            classSymbol.ContainingNamespace.ToDisplayString(), 
-            new EquatableArray<MemberToGenerate>([.. members]), 
-            new EquatableArray<PrettyMemberToGenerate>([.. prettyMembers]), 
-            withBlobSupport, 
+            classSymbol.Name,
+            classSymbol.ContainingNamespace.ToDisplayString(),
+            new EquatableArray<MemberToGenerate>([.. members]),
+            new EquatableArray<PrettyMemberToGenerate>([.. prettyMembers]),
+            withBlobSupport,
             withTablesSupport);
     }
 }

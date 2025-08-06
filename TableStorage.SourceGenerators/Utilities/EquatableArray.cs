@@ -24,12 +24,12 @@ public readonly struct EquatableArray<T>(T[]? array) : IEquatable<EquatableArray
     /// <returns>The element at the specified index.</returns>
     /// <exception cref="IndexOutOfRangeException">Thrown when index is out of range.</exception>
     public T this[int index] => AsSpan()[index];
-    
+
     /// <summary>
     /// Gets the number of elements in the array.
     /// </summary>
     public int Length => _array?.Length ?? 0;
-    
+
     /// <summary>
     /// Gets a value indicating whether the array is empty.
     /// </summary>
@@ -92,9 +92,9 @@ public readonly struct EquatableArray<T>(T[]? array) : IEquatable<EquatableArray
     /// <param name="obj">The object to compare with.</param>
     /// <returns>true if the arrays are equal; otherwise, false.</returns>
     public override bool Equals(object? obj) => obj is EquatableArray<T> other && Equals(other);    /// <summary>
-    /// Computes the hash code for this array based on its elements.
-    /// </summary>
-    /// <returns>A hash code for the current array.</returns>
+                                                                                                    /// Computes the hash code for this array based on its elements.
+                                                                                                    /// </summary>
+                                                                                                    /// <returns>A hash code for the current array.</returns>
     public override int GetHashCode()
     {
         if (_array is null)
@@ -136,7 +136,7 @@ public readonly struct EquatableArray<T>(T[]? array) : IEquatable<EquatableArray
     /// <param name="right">The second array to compare.</param>
     /// <returns>true if the arrays are equal; otherwise, false.</returns>
     public static bool operator ==(EquatableArray<T> left, EquatableArray<T> right) => left.Equals(right);
-    
+
     /// <summary>
     /// Determines whether two arrays are not equal.
     /// </summary>
@@ -144,7 +144,7 @@ public readonly struct EquatableArray<T>(T[]? array) : IEquatable<EquatableArray
     /// <param name="right">The second array to compare.</param>
     /// <returns>true if the arrays are not equal; otherwise, false.</returns>
     public static bool operator !=(EquatableArray<T> left, EquatableArray<T> right) => !left.Equals(right);
-    
+
     /// <summary>
     /// Implicitly converts an array to an EquatableArray.
     /// </summary>

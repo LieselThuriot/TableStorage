@@ -29,7 +29,7 @@ public sealed class TableSetModelGenerator : IIncrementalGenerator
     /// The fully qualified name of the TableSet attribute to search for.
     /// </summary>
     private const string TableSetAttributeFullName = "TableStorage.TableSetAttribute";
-    
+
     /// <summary>
     /// Pre-generated source code for TableStorage attributes.
     /// This includes TableSetAttribute, TableSetPropertyAttribute, and TagAttribute.
@@ -109,15 +109,15 @@ namespace TableStorage
     }
 #endif
 }";    /// <summary>
-    /// Initializes the incremental generator by registering all the necessary providers and transformations.
-    /// This follows the best practices for incremental generators:
-    /// 1. Registers the attributes first in post-initialization
-    /// 2. Uses ForAttributeWithMetadataName for optimal performance  
-    /// 3. Separates configuration extraction for better caching
-    /// 4. Uses value-type data models throughout the pipeline
-    /// 5. Employs lightweight predicates with comprehensive transforms
-    /// </summary>
-    /// <param name="context">The generator initialization context.</param>
+       /// Initializes the incremental generator by registering all the necessary providers and transformations.
+       /// This follows the best practices for incremental generators:
+       /// 1. Registers the attributes first in post-initialization
+       /// 2. Uses ForAttributeWithMetadataName for optimal performance  
+       /// 3. Separates configuration extraction for better caching
+       /// 4. Uses value-type data models throughout the pipeline
+       /// 5. Employs lightweight predicates with comprehensive transforms
+       /// </summary>
+       /// <param name="context">The generator initialization context.</param>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
         // Register the attributes source first - this runs once during initialization
@@ -157,16 +157,16 @@ namespace TableStorage
                 source.Options,
                 spc));
     }    /// <summary>
-    /// Extracts table set class information from a GeneratorAttributeSyntaxContext.
-    /// This method is designed to extract all necessary data in the transform stage to avoid
-    /// keeping syntax nodes in the pipeline, which would break caching.
-    /// 
-    /// This bridges the new incremental generator approach with the existing extraction logic
-    /// while ensuring proper data model extraction for caching.
-    /// </summary>
-    /// <param name="context">The generator attribute syntax context containing the decorated node.</param>
-    /// <param name="cancellationToken">The cancellation token for operation cancellation.</param>
-    /// <returns>The extracted class information, or null if extraction fails.</returns>
+         /// Extracts table set class information from a GeneratorAttributeSyntaxContext.
+         /// This method is designed to extract all necessary data in the transform stage to avoid
+         /// keeping syntax nodes in the pipeline, which would break caching.
+         /// 
+         /// This bridges the new incremental generator approach with the existing extraction logic
+         /// while ensuring proper data model extraction for caching.
+         /// </summary>
+         /// <param name="context">The generator attribute syntax context containing the decorated node.</param>
+         /// <param name="cancellationToken">The cancellation token for operation cancellation.</param>
+         /// <returns>The extracted class information, or null if extraction fails.</returns>
     private static ClassToGenerate? ExtractTableSetClass(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         // Validate input - only process class declarations

@@ -158,7 +158,7 @@ internal sealed class BlobQueryVisitor(string? partitionKeyProxy, string? rowKey
                 }
             }
             else if (_tags.Contains(member.Member.Name))
-            {                
+            {
                 string? value = GetValue(right)?.ToString();
                 if (value is not null)
                 {

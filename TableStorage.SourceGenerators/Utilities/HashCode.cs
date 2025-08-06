@@ -54,7 +54,8 @@ internal struct HashCode
     {
         uint val = (uint)value;
         uint previousLength = _length++;
-        uint position = previousLength % 4;        if (position == 0)
+        uint position = previousLength % 4;
+        if (position == 0)
         {
             _queue1 = val;
         }
@@ -89,7 +90,8 @@ internal struct HashCode
 
         if (position > 0)
         {
-            hash = QueueRound(hash, _queue1);            if (position > 1)
+            hash = QueueRound(hash, _queue1);
+            if (position > 1)
             {
                 hash = QueueRound(hash, _queue2);
                 if (position > 2)
@@ -224,7 +226,8 @@ internal struct HashCode
         hc.Add(value5);
         hc.Add(value6);
         return hc.ToHashCode();
-    }    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    }
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static uint Round(uint hash, uint input)
     {
         return RotateLeft(hash + (input * Prime2), 13) * Prime1;
@@ -263,7 +266,8 @@ internal struct HashCode
     private static uint RotateLeft(uint value, int offset)
     {
         return (value << offset) | (value >> (32 - offset));
-    }    private static uint GenerateSeed()
+    }
+    private static uint GenerateSeed()
     {
         // Use a fixed seed for deterministic hashing in source generators
         return 0x9E3779B9U;

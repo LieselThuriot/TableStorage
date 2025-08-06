@@ -63,7 +63,7 @@ internal sealed class ChangeTrackingTableSet<T> : TableSet<T>
     public async override Task<(bool success, T? entity)> TryGetEntityAsync(string partitionKey, string rowKey, IEnumerable<string>? select, CancellationToken cancellationToken = default)
     {
         (bool success, T? entity) result = await base.TryGetEntityAsync(partitionKey, rowKey, select, cancellationToken);
-        
+
         if (result.success)
         {
             result.entity!.AcceptChanges();

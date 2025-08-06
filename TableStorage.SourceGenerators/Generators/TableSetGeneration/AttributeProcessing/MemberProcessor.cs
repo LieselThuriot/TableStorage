@@ -10,12 +10,12 @@ namespace TableStorage.SourceGenerators.Generators.TableSetGeneration.AttributeP
 /// </summary>
 internal static class MemberProcessor
 {    /// <summary>
-    /// Reserved property names that should not be processed as regular members.
-    /// </summary>
+     /// Reserved property names that should not be processed as regular members.
+     /// </summary>
     private static readonly HashSet<string> s_reservedPropertyNames =
     [
         "PartitionKey",
-        "RowKey", 
+        "RowKey",
         "Timestamp",
         "ETag",
         "this[]", // Indexer
@@ -37,11 +37,11 @@ internal static class MemberProcessor
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of members to generate.</returns>
     public static List<MemberToGenerate> ProcessClassMembers(
-        INamedTypeSymbol classSymbol, 
-        List<PrettyMemberToGenerate> prettyMembers, 
-        bool withChangeTracking, 
-        string partitionKeyForNewMembers, 
-        string rowKeyForNewMembers, 
+        INamedTypeSymbol classSymbol,
+        List<PrettyMemberToGenerate> prettyMembers,
+        bool withChangeTracking,
+        string partitionKeyForNewMembers,
+        string rowKeyForNewMembers,
         CancellationToken ct)
     {
         // Get all properties including inherited ones
@@ -51,7 +51,7 @@ internal static class MemberProcessor
         foreach (IPropertySymbol property in allProperties)
         {
             ct.ThrowIfCancellationRequested();
-            
+
             if (property.IsStatic)
             {
                 continue;
@@ -65,7 +65,7 @@ internal static class MemberProcessor
             ITypeSymbol type = property.Type;
             TypeKind typeKind = TypeHelper.GetTypeKind(type);
             bool tagBlob = property.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString() == "TableStorage.TagAttribute");
-            
+
             // Check if this is a partial property definition or a virtual property that should be overridden
             bool isPartial = property.IsPartialDefinition;
             bool isVirtualFromBase = property.IsVirtual && !SymbolEqualityComparer.Default.Equals(property.ContainingType, classSymbol);
@@ -113,7 +113,7 @@ internal static class MemberProcessor
             currentType = currentType.BaseType;
         }
 
-        properties.Sort((x,y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
+        properties.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
         return properties;
     }
 }

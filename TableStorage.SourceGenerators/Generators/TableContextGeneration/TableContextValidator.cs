@@ -6,7 +6,8 @@ namespace TableStorage.SourceGenerators.Generators.TableContextGeneration;
 /// Validates dependencies and requirements for table context generation.
 /// </summary>
 internal static class TableContextValidator
-{    /// <summary>
+{
+    /// <summary>
     /// Represents the capabilities available based on referenced assemblies.
     /// </summary>
     public readonly struct TableContextCapabilities(bool hasTables, bool hasBlobs)
@@ -27,26 +28,27 @@ internal static class TableContextValidator
     /// <param name="context">The source production context for reporting diagnostics.</param>
     /// <returns>The available capabilities, or null if validation failed.</returns>
     public static TableContextCapabilities? ValidateAndGetCapabilities(
-        Compilation compilation, 
+        Compilation compilation,
         SourceProductionContext context)
     {
         bool hasTables = false, hasBlobs = false;
-        
+
         foreach (AssemblyIdentity referencedAssembly in compilation.ReferencedAssemblyNames)
         {
             switch (referencedAssembly.Name)
-            {                case "TableStorage":
+            {
+                case "TableStorage":
                     hasTables = true;
-                    if (hasBlobs) 
+                    if (hasBlobs)
                     {
                         goto FoundBoth; // Early exit if we have both
                     }
-                    
+
                     break;
-                    
+
                 case "TableStorage.Blobs":
                     hasBlobs = true;
-                    if (hasTables) 
+                    if (hasTables)
                     {
                         goto FoundBoth; // Early exit if we have both
                     }
@@ -55,7 +57,7 @@ internal static class TableContextValidator
             }
         }
 
-        FoundBoth:
+    FoundBoth:
         if (!hasTables && !hasBlobs)
         {
             var descriptor = new DiagnosticDescriptor(

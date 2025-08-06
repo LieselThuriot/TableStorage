@@ -59,7 +59,7 @@ internal readonly struct TableContextMemberInfo(string name, string type, string
 /// Represents extracted information from a class with TableSetAttribute.
 /// This is a value-type data model that enables proper caching in incremental generators.
 /// </summary>
-internal readonly struct TableSetClassInfo(string name, string @namespace, EquatableArray<TableSetMemberInfo> members, 
+internal readonly struct TableSetClassInfo(string name, string @namespace, EquatableArray<TableSetMemberInfo> members,
     EquatableArray<TableSetPrettyMemberInfo> prettyMembers, bool withBlobSupport, bool withTablesSupport) : IEquatable<TableSetClassInfo>
 {
     public readonly string Name = name;
@@ -71,11 +71,11 @@ internal readonly struct TableSetClassInfo(string name, string @namespace, Equat
 
     public bool Equals(TableSetClassInfo other)
     {
-        return Name == other.Name && 
-               Namespace == other.Namespace && 
-               Members.Equals(other.Members) && 
-               PrettyMembers.Equals(other.PrettyMembers) && 
-               WithBlobSupport == other.WithBlobSupport && 
+        return Name == other.Name &&
+               Namespace == other.Namespace &&
+               Members.Equals(other.Members) &&
+               PrettyMembers.Equals(other.PrettyMembers) &&
+               WithBlobSupport == other.WithBlobSupport &&
                WithTablesSupport == other.WithTablesSupport;
     }
 
@@ -94,7 +94,7 @@ internal readonly struct TableSetClassInfo(string name, string @namespace, Equat
 /// Represents extracted information from a member in a TableSet class.
 /// This is a value-type data model that enables proper caching in incremental generators.
 /// </summary>
-internal readonly struct TableSetMemberInfo(string name, string type, string typeKind, bool generateProperty, 
+internal readonly struct TableSetMemberInfo(string name, string type, string typeKind, bool generateProperty,
     string partitionKeyProxy, string rowKeyProxy, bool withChangeTracking, bool isPartial, bool tagBlob) : IEquatable<TableSetMemberInfo>
 {
     public readonly string Name = name;
@@ -109,14 +109,14 @@ internal readonly struct TableSetMemberInfo(string name, string type, string typ
 
     public bool Equals(TableSetMemberInfo other)
     {
-        return Name == other.Name && 
-               Type == other.Type && 
-               TypeKind == other.TypeKind && 
-               GenerateProperty == other.GenerateProperty && 
-               PartitionKeyProxy == other.PartitionKeyProxy && 
-               RowKeyProxy == other.RowKeyProxy && 
-               WithChangeTracking == other.WithChangeTracking && 
-               IsPartial == other.IsPartial && 
+        return Name == other.Name &&
+               Type == other.Type &&
+               TypeKind == other.TypeKind &&
+               GenerateProperty == other.GenerateProperty &&
+               PartitionKeyProxy == other.PartitionKeyProxy &&
+               RowKeyProxy == other.RowKeyProxy &&
+               WithChangeTracking == other.WithChangeTracking &&
+               IsPartial == other.IsPartial &&
                TagBlob == other.TagBlob;
     }
 

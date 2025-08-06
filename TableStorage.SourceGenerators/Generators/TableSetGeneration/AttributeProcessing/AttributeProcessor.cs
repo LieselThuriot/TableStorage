@@ -19,18 +19,18 @@ internal static class AttributeProcessor
     /// <param name="ct">Cancellation token.</param>
     /// <returns>List of relevant attributes with their full names.</returns>
     public static List<(string fullName, AttributeSyntax attributeSyntax)> GetRelevantAttributes(
-        ClassDeclarationSyntax classDeclarationSyntax, 
-        SemanticModel semanticModel, 
+        ClassDeclarationSyntax classDeclarationSyntax,
+        SemanticModel semanticModel,
         CancellationToken ct)
     {
         List<(string fullName, AttributeSyntax attributeSyntax)> relevantSymbols = [];
-        
+
         foreach (AttributeListSyntax attributeListSyntax in classDeclarationSyntax.AttributeLists)
         {
             foreach (AttributeSyntax attributeSyntax in attributeListSyntax.Attributes)
             {
                 ct.ThrowIfCancellationRequested();
-                
+
                 if (semanticModel.GetSymbolInfo(attributeSyntax, cancellationToken: ct).Symbol is not IMethodSymbol attributeSymbol)
                 {
                     continue; // weird, we couldn't get the symbol, ignore it
@@ -58,7 +58,7 @@ internal static class AttributeProcessor
         AttributeSyntax tablesetAttribute)
     {
         List<PrettyMemberToGenerate> prettyMembers = new(2);
-        
+
         string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
         if (partitionKeyProxy != null)
         {
@@ -96,7 +96,7 @@ internal static class AttributeProcessor
         foreach ((string attrFullName, AttributeSyntax tableSetPropertyAttribute) in relevantAttributes.Where(x => x.fullName == "TableStorage.TableSetPropertyAttribute"))
         {
             ct.ThrowIfCancellationRequested();
-            
+
             if (tableSetPropertyAttribute.ArgumentList == null || tableSetPropertyAttribute.ArgumentList.Arguments.Count < 2)
             {
                 continue;

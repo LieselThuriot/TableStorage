@@ -9,8 +9,8 @@ namespace TableStorage.SourceGenerators.Utilities;
 /// </summary>
 internal static class ValidationHelper
 {    /// <summary>
-    /// Diagnostic descriptor for missing TableStorage assembly references.
-    /// </summary>
+     /// Diagnostic descriptor for missing TableStorage assembly references.
+     /// </summary>
     private static readonly DiagnosticDescriptor s_missingTableStorageReference = new(
         id: "TSG001",
         title: "Missing TableStorage Reference",
@@ -51,7 +51,7 @@ internal static class ValidationHelper
     public static bool AreRequiredAssembliesReferenced(Compilation compilation, SourceProductionContext context)
     {
         var result = ValidateRequiredAssemblies(compilation);
-        
+
         if (result.HasDiagnostics)
         {
             foreach (var diagnosticInfo in result.Diagnostics)

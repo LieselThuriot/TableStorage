@@ -16,9 +16,9 @@ internal static class ConstructorGenerator
     /// <param name="hasTables">Whether table support is available.</param>
     /// <param name="hasBlobs">Whether blob support is available.</param>
     public static void GenerateConstructor(
-        StringBuilder sb, 
-        ContextClassToGenerate classToGenerate, 
-        bool hasTables, 
+        StringBuilder sb,
+        ContextClassToGenerate classToGenerate,
+        bool hasTables,
         bool hasBlobs)
     {
         // Generate constructor signature
@@ -50,15 +50,15 @@ internal static class ConstructorGenerator
             {
                 sb.Append(", ");
             }
-            
+
             sb.Append("TableStorage.IBlobCreator blobCreator");
         }
     }
 
     private static void GenerateConstructorBody(
-        StringBuilder sb, 
-        ContextClassToGenerate classToGenerate, 
-        bool hasTables, 
+        StringBuilder sb,
+        ContextClassToGenerate classToGenerate,
+        bool hasTables,
         bool hasBlobs)
     {
         // Assign injected dependencies

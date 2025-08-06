@@ -20,7 +20,8 @@ public readonly struct ContextClassToGenerate(string name, string @namespace, Eq
     public override bool Equals(object? obj)
     {
         return obj is ContextClassToGenerate other && Equals(other);
-    }    public override int GetHashCode()
+    }
+    public override int GetHashCode()
     {
         return HashCode.Combine(Name, Namespace, Members);
     }
@@ -44,7 +45,8 @@ public readonly struct ContextMemberToGenerate(string name, string type, TypeKin
     public override bool Equals(object? obj)
     {
         return obj is ContextMemberToGenerate other && Equals(other);
-    }    public override int GetHashCode()
+    }
+    public override int GetHashCode()
     {
         return HashCode.Combine(Name, Type, TypeKind, SetType);
     }
@@ -62,11 +64,11 @@ public readonly struct ClassToGenerate(string name, string @namespace, Equatable
     public readonly EquatableArray<PrettyMemberToGenerate> PrettyMembers = prettyMembers;
     public readonly bool WithBlobSupport = withBlobSupport;
     public readonly bool WithTablesSupport = withTablesSupport;/// <summary>
-    /// Attempts to find a pretty member with the specified proxy name.
-    /// </summary>
-    /// <param name="proxy">The proxy name to search for.</param>
-    /// <param name="prettyMemberToGenerate">The found pretty member, if any.</param>
-    /// <returns>True if a matching pretty member was found, false otherwise.</returns>
+                                                               /// Attempts to find a pretty member with the specified proxy name.
+                                                               /// </summary>
+                                                               /// <param name="proxy">The proxy name to search for.</param>
+                                                               /// <param name="prettyMemberToGenerate">The found pretty member, if any.</param>
+                                                               /// <returns>True if a matching pretty member was found, false otherwise.</returns>
     public bool TryGetPrettyMember(string proxy, out PrettyMemberToGenerate prettyMemberToGenerate)
     {
         foreach (PrettyMemberToGenerate member in PrettyMembers)
@@ -84,18 +86,19 @@ public readonly struct ClassToGenerate(string name, string @namespace, Equatable
 
     public bool Equals(ClassToGenerate other)
     {
-        return Name == other.Name && 
-               Namespace == other.Namespace && 
-               Members.Equals(other.Members) && 
-               PrettyMembers.Equals(other.PrettyMembers) && 
-               WithBlobSupport == other.WithBlobSupport && 
+        return Name == other.Name &&
+               Namespace == other.Namespace &&
+               Members.Equals(other.Members) &&
+               PrettyMembers.Equals(other.PrettyMembers) &&
+               WithBlobSupport == other.WithBlobSupport &&
                WithTablesSupport == other.WithTablesSupport;
     }
 
     public override bool Equals(object? obj)
     {
         return obj is ClassToGenerate other && Equals(other);
-    }    public override int GetHashCode()
+    }
+    public override int GetHashCode()
     {
         return HashCode.Combine(Name, Namespace, Members, PrettyMembers, WithBlobSupport, WithTablesSupport);
     }
@@ -120,14 +123,14 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
 
     public bool Equals(MemberToGenerate other)
     {
-        return Name == other.Name && 
-               Type == other.Type && 
-               TypeKind == other.TypeKind && 
-               GenerateProperty == other.GenerateProperty && 
-               PartitionKeyProxy == other.PartitionKeyProxy && 
-               RowKeyProxy == other.RowKeyProxy && 
-               WithChangeTracking == other.WithChangeTracking && 
-               IsPartial == other.IsPartial && 
+        return Name == other.Name &&
+               Type == other.Type &&
+               TypeKind == other.TypeKind &&
+               GenerateProperty == other.GenerateProperty &&
+               PartitionKeyProxy == other.PartitionKeyProxy &&
+               RowKeyProxy == other.RowKeyProxy &&
+               WithChangeTracking == other.WithChangeTracking &&
+               IsPartial == other.IsPartial &&
                IsOverride == other.IsOverride &&
                TagBlob == other.TagBlob;
     }
@@ -135,7 +138,8 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
     public override bool Equals(object? obj)
     {
         return obj is MemberToGenerate other && Equals(other);
-    }    public override int GetHashCode()
+    }
+    public override int GetHashCode()
     {
         var hashCode = HashCode.Create();
         hashCode.Add(Name);
@@ -169,7 +173,8 @@ public readonly struct PrettyMemberToGenerate(string name, string proxy) : IEqua
     public override bool Equals(object? obj)
     {
         return obj is PrettyMemberToGenerate other && Equals(other);
-    }    public override int GetHashCode()
+    }
+    public override int GetHashCode()
     {
         return HashCode.Combine(Name, Proxy);
     }

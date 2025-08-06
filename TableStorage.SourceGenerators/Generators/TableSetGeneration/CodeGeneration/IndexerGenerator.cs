@@ -17,10 +17,10 @@ internal static class IndexerGenerator
     /// <param name="publishAot">Whether AOT publishing is enabled.</param>
     /// <param name="tableStorageSerializerContext">The serializer context for AOT.</param>
     public static void GenerateIndexerImplementation(
-        StringBuilder sb, 
-        ClassToGenerate classToGenerate, 
-        in ModelContext context, 
-        bool publishAot, 
+        StringBuilder sb,
+        ClassToGenerate classToGenerate,
+        in ModelContext context,
+        bool publishAot,
         string? tableStorageSerializerContext)
     {
         GenerateIndexerGetter(sb, classToGenerate, context);
@@ -29,7 +29,7 @@ internal static class IndexerGenerator
         {
             GenerateIndexerSetter(sb, classToGenerate, context, publishAot, tableStorageSerializerContext);
         }
-        
+
         sb.AppendLine().Append("        }");
     }
 
@@ -66,10 +66,10 @@ internal static class IndexerGenerator
     }
 
     private static void GenerateIndexerSetter(
-        StringBuilder sb, 
-        ClassToGenerate classToGenerate, 
-        in ModelContext context, 
-        bool publishAot, 
+        StringBuilder sb,
+        ClassToGenerate classToGenerate,
+        in ModelContext context,
+        bool publishAot,
         string? tableStorageSerializerContext)
     {
         sb.Append(@"

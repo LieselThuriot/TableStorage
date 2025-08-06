@@ -37,9 +37,9 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     public string EntityType => Type.Name;
 
     protected internal BlobOptions Options { get; }
-    protected internal  string? PartitionKeyProxy { get; }
-    protected internal  string? RowKeyProxy { get; }
-    protected internal  IReadOnlyCollection<string> Tags { get; }
+    protected internal string? PartitionKeyProxy { get; }
+    protected internal string? RowKeyProxy { get; }
+    protected internal IReadOnlyCollection<string> Tags { get; }
 
     private readonly LazyAsync<BlobContainerClient> _containerClient;
 
@@ -204,7 +204,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     public async Task<(bool success, Stream? stream)> TryGetStreamAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default)
     {
         TClient blob = await GetClient(partitionKey, rowKey);
-        
+
         if (!await blob.ExistsAsync(cancellationToken))
         {
             return (false, null);
@@ -226,7 +226,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
         return stream!;
     }
 
-    public async IAsyncEnumerable<string> FindRowsAsync(string partition, [EnumeratorCancellation]CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<string> FindRowsAsync(string partition, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         if (partition is null)
         {

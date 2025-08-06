@@ -20,7 +20,7 @@ internal static class DictionaryImplementationGenerator
         string realPartitionKey = context.RealPartitionKey;
         string realRowKey = context.RealRowKey;
         List<MemberToGenerate> keysAndValuesToGenerate = [.. classToGenerate.Members.Where(x => x.Name != realPartitionKey && x.Name != realRowKey)];
-        
+
         GenerateCollections(sb, context, keysAndValuesToGenerate);
         GenerateDictionaryMethods(sb, classToGenerate, context);
     }
@@ -67,7 +67,7 @@ internal static class DictionaryImplementationGenerator
     private static void GenerateDictionaryMethods(StringBuilder sb, ClassToGenerate classToGenerate, ModelContext context)
     {
         bool hasChangeTracking = context.HasChangeTracking;
-        
+
         GenerateAddMethods(sb, hasChangeTracking);
         GenerateClearMethod(sb, classToGenerate, context);
         GenerateContainsMethods(sb, classToGenerate);

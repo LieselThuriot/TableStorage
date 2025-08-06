@@ -15,9 +15,9 @@ internal static class ServiceRegistrationGenerator
     /// <param name="hasTables">Whether table support is available.</param>
     /// <param name="hasBlobs">Whether blob support is available.</param>
     public static void GenerateRegistrationMethod(
-        StringBuilder sb, 
-        string className, 
-        bool hasTables, 
+        StringBuilder sb,
+        string className,
+        bool hasTables,
         bool hasBlobs)
     {
         sb.Append(@"
@@ -58,7 +58,7 @@ internal static class ServiceRegistrationGenerator
             {
                 sb.Append(", ");
             }
-            
+
             sb.Append("blobCreator");
         }
 

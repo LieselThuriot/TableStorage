@@ -36,7 +36,7 @@ internal static class DataExtractor
     private static readonly HashSet<string> s_tableSetTypeNames = new(StringComparer.Ordinal)
     {
         "TableSet",
-        "DefaultTableSet", 
+        "DefaultTableSet",
         "ChangeTrackingTableSet"
     };
 
@@ -48,7 +48,7 @@ internal static class DataExtractor
         "BlobSet",
         "AppendBlobSet"
     };
-    
+
     /// <summary>
     /// Extracts table context class information from a GeneratorAttributeSyntaxContext.
     /// This method is designed to be used in the transform stage of ForAttributeWithMetadataName.
@@ -85,7 +85,7 @@ internal static class DataExtractor
 
         // Pre-allocate member list with reasonable capacity to avoid resizing
         var members = new List<TableContextMemberInfo>(capacity: 8);
-        
+
         // Single-pass member extraction with efficient filtering
         foreach (var member in classSymbol.GetMembers())
         {
@@ -105,18 +105,18 @@ internal static class DataExtractor
 
         return new TableContextClassInfo(name, @namespace, new EquatableArray<TableContextMemberInfo>([.. members]));
     }    /// <summary>
-    /// Extracts table set class information from a GeneratorAttributeSyntaxContext.
-    /// This method is designed to be used in the transform stage of ForAttributeWithMetadataName.
-    /// 
-    /// Performance optimizations:
-    /// - Early validation and cancellation checks
-    /// - Efficient attribute lookup with minimal allocations
-    /// - Single-pass member extraction with capacity planning
-    /// - Fast attribute property access
-    /// </summary>
-    /// <param name="context">The generator attribute syntax context.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The extracted table set class information, or null if extraction fails.</returns>
+         /// Extracts table set class information from a GeneratorAttributeSyntaxContext.
+         /// This method is designed to be used in the transform stage of ForAttributeWithMetadataName.
+         /// 
+         /// Performance optimizations:
+         /// - Early validation and cancellation checks
+         /// - Efficient attribute lookup with minimal allocations
+         /// - Single-pass member extraction with capacity planning
+         /// - Fast attribute property access
+         /// </summary>
+         /// <param name="context">The generator attribute syntax context.</param>
+         /// <param name="cancellationToken">The cancellation token.</param>
+         /// <returns>The extracted table set class information, or null if extraction fails.</returns>
     public static TableSetClassInfo? ExtractTableSetInfo(GeneratorAttributeSyntaxContext context, CancellationToken cancellationToken)
     {
         // Fast validation - check syntax node type first
@@ -139,7 +139,8 @@ internal static class DataExtractor
         string @namespace = GetNamespaceString(classSymbol.ContainingNamespace);
 
         // Fast attribute lookup with early exit
-        var tableSetAttribute = GetTableSetAttributeFast(classSymbol);        if (tableSetAttribute == null)
+        var tableSetAttribute = GetTableSetAttributeFast(classSymbol);
+        if (tableSetAttribute == null)
         {
             return null;
         }
@@ -156,18 +157,18 @@ internal static class DataExtractor
         ExtractTableSetMembersOptimized(classSymbol, tableSetAttribute, members, prettyMembers, cancellationToken);
 
         return new TableSetClassInfo(
-            name, 
-            @namespace, 
+            name,
+            @namespace,
             new EquatableArray<TableSetMemberInfo>([.. members]),
             new EquatableArray<TableSetPrettyMemberInfo>([.. prettyMembers]),
             withBlobSupport,
             withTablesSupport);
     }    /// <summary>
-    /// Extracts generation options from analyzer config options.
-    /// Following Andrew Lock's best practices for configuration data extraction.
-    /// </summary>
-    /// <param name="optionsProvider">The analyzer config options provider.</param>
-    /// <returns>The generation options.</returns>
+         /// Extracts generation options from analyzer config options.
+         /// Following Andrew Lock's best practices for configuration data extraction.
+         /// </summary>
+         /// <param name="optionsProvider">The analyzer config options provider.</param>
+         /// <returns>The generation options.</returns>
     public static GenerationOptions ExtractGenerationOptions(Microsoft.CodeAnalysis.Diagnostics.AnalyzerConfigOptionsProvider optionsProvider)
     {
         bool publishAot = ConfigurationHelper.GetPublishAotProperty(optionsProvider);
@@ -180,19 +181,19 @@ internal static class DataExtractor
     /// Cache for namespace strings to avoid repeated ToDisplayString() calls.
     /// This can significantly improve performance when the same namespaces are encountered multiple times.
     /// </summary>
-    private static readonly ConcurrentDictionary<INamespaceSymbol, string> s_namespaceCache = 
+    private static readonly ConcurrentDictionary<INamespaceSymbol, string> s_namespaceCache =
         new(SymbolEqualityComparer.Default);
 
     /// <summary>
     /// Cache for type display strings to avoid repeated expensive ToDisplayString() calls.
     /// </summary>
-    private static readonly ConcurrentDictionary<ITypeSymbol, string> s_typeDisplayStringCache = 
+    private static readonly ConcurrentDictionary<ITypeSymbol, string> s_typeDisplayStringCache =
         new(SymbolEqualityComparer.Default);
 
     /// <summary>
     /// Cache for TableSet attribute lookups to avoid repeated attribute enumeration.
     /// </summary>
-    private static readonly ConcurrentDictionary<INamedTypeSymbol, AttributeData?> s_tableSetAttributeCache = 
+    private static readonly ConcurrentDictionary<INamedTypeSymbol, AttributeData?> s_tableSetAttributeCache =
         new(SymbolEqualityComparer.Default);
 
     /// <summary>
@@ -211,10 +212,10 @@ internal static class DataExtractor
     private static readonly string s_tableSetString = string.Intern("TableSet");
     private static readonly string s_blobSetString = string.Intern("BlobSet");
     private static readonly string s_unknownString = string.Intern("Unknown");    /// <summary>
-    /// Fast attribute lookup with caching for better performance.
-    /// </summary>
-    /// <param name="classSymbol">The class symbol to search.</param>
-    /// <returns>The TableSet attribute, or null if not found.</returns>
+                                                                                  /// Fast attribute lookup with caching for better performance.
+                                                                                  /// </summary>
+                                                                                  /// <param name="classSymbol">The class symbol to search.</param>
+                                                                                  /// <returns>The TableSet attribute, or null if not found.</returns>
     private static AttributeData? GetTableSetAttributeFast(INamedTypeSymbol classSymbol)
     {
         // Use cache for better performance with repeated lookups
@@ -224,9 +225,10 @@ internal static class DataExtractor
             {
                 if (attr.AttributeClass?.Name == "TableSetAttribute")
                 {
-                    return attr;                }
+                    return attr;
+                }
             }
-            
+
             return null;
         });
     }
@@ -261,9 +263,9 @@ internal static class DataExtractor
     /// <param name="prettyMembers">The pretty members list to populate.</param>
     /// <param name="cancellationToken">The cancellation token.</param>
     private static void ExtractTableSetMembersOptimized(
-        INamedTypeSymbol classSymbol, 
+        INamedTypeSymbol classSymbol,
         AttributeData tableSetAttribute,
-        List<TableSetMemberInfo> members, 
+        List<TableSetMemberInfo> members,
         List<TableSetPrettyMemberInfo> prettyMembers,
         CancellationToken cancellationToken)
     {        // Extract common attribute properties once using cached strings
@@ -326,11 +328,11 @@ internal static class DataExtractor
             }
         }
     }    /// <summary>
-    /// Gets a cached namespace string to avoid repeated ToDisplayString() calls.
-    /// This can significantly improve performance when the same namespaces are encountered multiple times.
-    /// </summary>
-    /// <param name="namespaceSymbol">The namespace symbol.</param>
-    /// <returns>The namespace string.</returns>
+         /// Gets a cached namespace string to avoid repeated ToDisplayString() calls.
+         /// This can significantly improve performance when the same namespaces are encountered multiple times.
+         /// </summary>
+         /// <param name="namespaceSymbol">The namespace symbol.</param>
+         /// <returns>The namespace string.</returns>
     private static string GetNamespaceString(INamespaceSymbol namespaceSymbol)
     {
         return s_namespaceCache.GetOrAdd(namespaceSymbol, static ns => ns.ToDisplayString());
@@ -353,17 +355,17 @@ internal static class DataExtractor
         string typeName = namedType.Name;
         return s_tableSetTypeNames.Contains(typeName) || s_blobSetTypeNames.Contains(typeName);
     }    /// <summary>
-    /// Optimized version of table context member info extraction with caching.
-    /// </summary>
-    /// <param name="property">The property symbol.</param>
-    /// <returns>The extracted member info.</returns>
+         /// Optimized version of table context member info extraction with caching.
+         /// </summary>
+         /// <param name="property">The property symbol.</param>
+         /// <returns>The extracted member info.</returns>
     private static TableContextMemberInfo? ExtractTableContextMemberInfoOptimized(IPropertySymbol property)
     {
         // Extract information efficiently with caching
         string name = property.Name;
         string type = GetCachedTypeDisplayString(property.Type);
         string typeKind = property.Type.TypeKind.ToString();
-        
+
         // Fast set type determination using cached HashSets and interned strings
         string setType = DetermineSetTypeFast(property.Type);
 
@@ -379,21 +381,21 @@ internal static class DataExtractor
     {
         return s_typeDisplayStringCache.GetOrAdd(type, static t => t.ToDisplayString());
     }    /// <summary>
-    /// Fast set type determination using cached lookups and interned strings.
-    /// </summary>
-    /// <param name="type">The type symbol.</param>
-    /// <returns>The set type string.</returns>
+         /// Fast set type determination using cached lookups and interned strings.
+         /// </summary>
+         /// <param name="type">The type symbol.</param>
+         /// <returns>The set type string.</returns>
     private static string DetermineSetTypeFast(ITypeSymbol type)
     {
         if (type is INamedTypeSymbol namedType)
         {
             string typeName = namedType.Name;
-            
+
             if (s_tableSetTypeNames.Contains(typeName))
             {
                 return s_tableSetString;
             }
-            
+
             if (s_blobSetTypeNames.Contains(typeName))
             {
                 return s_blobSetString;
@@ -402,11 +404,11 @@ internal static class DataExtractor
 
         return s_unknownString;
     }    /// <summary>
-    /// Optimized compilation capabilities extraction that follows Andrew Lock's best practices.
-    /// Extracts only essential data in a single pass to maintain optimal caching performance.
-    /// </summary>
-    /// <param name="compilation">The compilation to analyze.</param>
-    /// <returns>The compilation capabilities with optimized caching.</returns>
+         /// Optimized compilation capabilities extraction that follows Andrew Lock's best practices.
+         /// Extracts only essential data in a single pass to maintain optimal caching performance.
+         /// </summary>
+         /// <param name="compilation">The compilation to analyze.</param>
+         /// <returns>The compilation capabilities with optimized caching.</returns>
     public static CompilationCapabilities ExtractCompilationCapabilities(Compilation compilation)
     {
         bool hasTables = false;
@@ -416,13 +418,13 @@ internal static class DataExtractor
         foreach (var assemblyIdentity in compilation.ReferencedAssemblyNames)
         {
             string assemblyName = assemblyIdentity.Name;
-            
+
             // Fast lookup using cached HashSets (O(1) operations)
             if (!hasTables && assemblyName is "TableStorage")
             {
                 hasTables = true;
             }
-            
+
             if (!hasBlobs && assemblyName is "TableStorage.Blobs")
             {
                 hasBlobs = true;
@@ -450,7 +452,7 @@ internal static class DataExtractor
     {
         // Andrew Lock Best Practice: Syntax-only checks for maximum performance
         // This runs for every syntax node on every keypress, so must be ultra-fast
-        
+
         // Fast type check first - most efficient filter
         if (node is not ClassDeclarationSyntax classDeclaration)
         {
@@ -469,7 +471,7 @@ internal static class DataExtractor
 
         // Additional quick syntax checks could go here
         // e.g., check for partial keyword, public modifier, etc.
-        
+
         return true;
     }
 
@@ -499,7 +501,7 @@ internal static class DataExtractor
         // Could add more sophisticated syntax-only filtering here
         // For example, checking for specific attribute names in syntax
         // (though this would need to be balanced against predicate performance)
-        
+
         return true;
     }
 }

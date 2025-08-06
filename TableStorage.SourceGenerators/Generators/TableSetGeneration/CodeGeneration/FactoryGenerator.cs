@@ -87,7 +87,7 @@ internal static class FactoryGenerator
 
         // Generate CreateBlobSet method
         GenerateBlobSetFactory(sb, classToGenerate, context, "BlobSet", "CreateSet");
-        
+
         // Generate CreateAppendBlobSet method
         GenerateBlobSetFactory(sb, classToGenerate, context, "AppendBlobSet", "CreateAppendSet");
     }

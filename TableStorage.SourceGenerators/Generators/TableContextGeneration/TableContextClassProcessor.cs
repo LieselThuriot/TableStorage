@@ -19,8 +19,8 @@ internal static class TableContextClassProcessor
     /// <param name="ct">Cancellation token.</param>
     /// <returns>A ContextClassToGenerate instance, or null if processing failed.</returns>
     public static ContextClassToGenerate? ProcessClassDeclaration(
-        Compilation compilation, 
-        ClassDeclarationSyntax classDeclarationSyntax, 
+        Compilation compilation,
+        ClassDeclarationSyntax classDeclarationSyntax,
         CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
@@ -43,17 +43,17 @@ internal static class TableContextClassProcessor
                 {
                     ITypeSymbol tableSetType = ((INamedTypeSymbol)property.Type).TypeArguments[0];
                     members.Add(new(
-                        member.Name, 
-                        tableSetType.ToDisplayString(), 
-                        property.Type.TypeKind, 
+                        member.Name,
+                        tableSetType.ToDisplayString(),
+                        property.Type.TypeKind,
                         property.Type.Name));
                 }
             }
         }
-        
+
         return new ContextClassToGenerate(
-            classSymbol.Name, 
-            classSymbol.ContainingNamespace.ToDisplayString(), 
+            classSymbol.Name,
+            classSymbol.ContainingNamespace.ToDisplayString(),
             new EquatableArray<ContextMemberToGenerate>([.. members]));
     }
 }

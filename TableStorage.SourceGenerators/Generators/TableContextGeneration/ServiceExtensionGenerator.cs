@@ -16,9 +16,9 @@ internal static class ServiceExtensionGenerator
     /// <param name="hasTables">Whether table support is available.</param>
     /// <param name="hasBlobs">Whether blob support is available.</param>
     public static void GenerateServiceExtensions(
-        StringBuilder sb, 
-        ContextClassToGenerate classToGenerate, 
-        bool hasTables, 
+        StringBuilder sb,
+        ContextClassToGenerate classToGenerate,
+        bool hasTables,
         bool hasBlobs)
     {
         sb.Append(@"
