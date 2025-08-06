@@ -129,6 +129,7 @@ internal static class AttributeProcessor
                 rowKeyProxy: rowKeyProxy,
                 withChangeTracking: withChangeTracking,
                 isPartial: false, // These are not pre-existing partial properties
+                isOverride: false, // These are not overrides, they are new properties
                 tagBlob: tagBlob
             ));
         }

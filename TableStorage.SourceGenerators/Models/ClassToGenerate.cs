@@ -105,7 +105,7 @@ public readonly struct ClassToGenerate(string name, string @namespace, Equatable
 /// Represents a member (property) to be generated in a class.
 /// Contains all configuration needed for property generation including type information and behavior.
 /// </summary>
-public readonly struct MemberToGenerate(string name, string type, TypeKind typeKind, bool generateProperty, string partitionKeyProxy, string rowKeyProxy, bool withChangeTracking, bool isPartial, bool tagBlob) : IEquatable<MemberToGenerate>
+public readonly struct MemberToGenerate(string name, string type, TypeKind typeKind, bool generateProperty, string partitionKeyProxy, string rowKeyProxy, bool withChangeTracking, bool isPartial, bool isOverride, bool tagBlob) : IEquatable<MemberToGenerate>
 {
     public readonly string Name = name;
     public readonly string Type = type;
@@ -115,6 +115,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
     public readonly string RowKeyProxy = rowKeyProxy;
     public readonly bool WithChangeTracking = generateProperty && withChangeTracking;
     public readonly bool IsPartial = isPartial;
+    public readonly bool IsOverride = isOverride;
     public readonly bool TagBlob = tagBlob;
 
     public bool Equals(MemberToGenerate other)
@@ -127,6 +128,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
                RowKeyProxy == other.RowKeyProxy && 
                WithChangeTracking == other.WithChangeTracking && 
                IsPartial == other.IsPartial && 
+               IsOverride == other.IsOverride &&
                TagBlob == other.TagBlob;
     }
 
@@ -144,6 +146,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
         hashCode.Add(RowKeyProxy);
         hashCode.Add(WithChangeTracking);
         hashCode.Add(IsPartial);
+        hashCode.Add(IsOverride);
         hashCode.Add(TagBlob);
         return hashCode.ToHashCode();
     }

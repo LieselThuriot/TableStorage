@@ -37,20 +37,46 @@ internal static class PropertyGenerator
             {
                 sb.Append("partial ");
             }
+            else if (item.IsOverride)
+            {
+                sb.Append("override ");
+            }
 
             sb.Append(item.Type).Append(' ').Append(item.Name);
 
-            if (item.IsPartial || item.WithChangeTracking)
+            if (item.IsPartial || item.IsOverride || item.WithChangeTracking)
             {
                 sb.Append(@"
         { 
             get
             {
-                return _").Append(item.Name).Append(@";
+                return ");
+
+                if (item.IsOverride)
+                {
+                    sb.Append("base.");
+                }
+                else
+                {
+                    sb.Append('_');
+                }
+
+                sb.Append(item.Name).Append(@";
             }
             set
             {
-                _").Append(item.Name).Append(@" = value;");
+                ");
+
+                if (item.IsOverride)
+                {
+                    sb.Append("base.");
+                }
+                else
+                {
+                    sb.Append('_');
+                }
+
+                sb.Append(item.Name).Append(@" = value;");
 
                 if (item.WithChangeTracking)
                 {
@@ -60,8 +86,12 @@ internal static class PropertyGenerator
 
                 sb.Append(@"
             }
-        }
+        }");
+                if (!item.IsOverride)
+                {
+                    sb.Append(@"
         private ").Append(item.Type).Append(" _").Append(item.Name).Append(';');
+                }
             }
             else
             {
@@ -76,7 +106,7 @@ internal static class PropertyGenerator
         foreach (PrettyMemberToGenerate item in classToGenerate.PrettyMembers)
         {
             bool partial = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name);
-            
+
             if (item.Proxy is "PartitionKey" or "RowKey")
             {
                 GenerateKeyProxyProperty(sb, classToGenerate, item, partial);

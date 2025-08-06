@@ -443,6 +443,13 @@ namespace TableStorage.Tests.Models
         public static string From(string value, string value2) => value + String() + value2;
     }
 
+    public abstract class BaseModel
+    {
+        public string CommonProperty { get; set; }
+        public virtual int BaseId { get; set; }
+        public virtual int BaseId2 { get; set; }
+    }
+
     [TableSet(TrackChanges = true, PartitionKey = "PrettyName", RowKey = "PrettyRow", SupportBlobs = true)]
     [TableSetProperty(typeof(int), "MyProperty1", Tag = true)]
     [TableSetProperty(typeof(string), "MyProperty2")]
@@ -452,7 +459,7 @@ namespace TableStorage.Tests.Models
     [TableSetProperty(typeof(HttpStatusCode), "MyProperty7")]
     [TableSetProperty(typeof(HttpStatusCode?), "MyProperty8")]
     [TableSetProperty(typeof(string), "MyProperty9")]
-    public partial class Model
+    public partial class Model : BaseModel
     {
         // Define as partial if you want to have changetracking
         [Tag]
@@ -460,7 +467,7 @@ namespace TableStorage.Tests.Models
     }
 
     [TableSet(RowKey = "PrettyRow", SupportBlobs = true)]
-    public partial class Model2
+    public partial class Model2 : BaseModel
     {
         public static string RandomHelpingString { get; } = "Test"; // Should not be generated as a property
 
@@ -473,6 +480,8 @@ namespace TableStorage.Tests.Models
         public ModelEnum MyProperty7 { get; set; }
         public ModelEnum? MyProperty8 { get; set; }
         public Nullable<ModelEnum> MyProperty9 { get; set; }
+
+        public override int BaseId2 { get; set; } = 10; // Override a base property to test if it works
     }
 
     public enum ModelEnum

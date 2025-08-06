@@ -101,7 +101,14 @@ internal static class IndexerGenerator
 
             if (item.WithChangeTracking)
             {
-                sb.Append('_');
+                if (item.IsOverride)
+                {
+                    sb.Append("base.");
+                }
+                else
+                {
+                    sb.Append('_');
+                }
             }
 
             sb.Append(item.Name).Append(" = ");

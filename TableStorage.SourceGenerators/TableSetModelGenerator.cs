@@ -28,7 +28,9 @@ public sealed class TableSetModelGenerator : IIncrementalGenerator
     /// <summary>
     /// The fully qualified name of the TableSet attribute to search for.
     /// </summary>
-    private const string TableSetAttributeFullName = "TableStorage.TableSetAttribute";    /// <summary>
+    private const string TableSetAttributeFullName = "TableStorage.TableSetAttribute";
+    
+    /// <summary>
     /// Pre-generated source code for TableStorage attributes.
     /// This includes TableSetAttribute, TableSetPropertyAttribute, and TagAttribute.
     /// </summary>

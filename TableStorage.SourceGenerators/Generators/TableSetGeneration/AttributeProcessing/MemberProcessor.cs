@@ -27,6 +27,7 @@ internal static class MemberProcessor
 
     /// <summary>
     /// Processes all members of a class symbol to generate appropriate member configurations.
+    /// Includes support for inherited properties from base classes.
     /// </summary>
     /// <param name="classSymbol">The class symbol to process.</param>
     /// <param name="prettyMembers">List of pretty members (proxies) already configured.</param>
@@ -43,18 +44,14 @@ internal static class MemberProcessor
         string rowKeyForNewMembers, 
         CancellationToken ct)
     {
-        ImmutableArray<ISymbol> classMembersSymbols = classSymbol.GetMembers();
-        List<MemberToGenerate> members = new(classMembersSymbols.Length);
+        // Get all properties including inherited ones
+        var allProperties = GetAllProperties(classSymbol);
+        List<MemberToGenerate> members = new(allProperties.Count);
 
-        foreach (ISymbol memberSymbol in classMembersSymbols)
+        foreach (IPropertySymbol property in allProperties)
         {
             ct.ThrowIfCancellationRequested();
             
-            if (memberSymbol is not IPropertySymbol property)
-            {
-                continue;
-            }
-
             if (property.IsStatic)
             {
                 continue;
@@ -68,7 +65,12 @@ internal static class MemberProcessor
             ITypeSymbol type = property.Type;
             TypeKind typeKind = TypeHelper.GetTypeKind(type);
             bool tagBlob = property.GetAttributes().Any(x => x.AttributeClass?.ToDisplayString() == "TableStorage.TagAttribute");
-            bool generate = property.IsPartialDefinition && !prettyMembers.Any(x => x.Name == property.Name);
+            
+            // Check if this is a partial property definition or a virtual property that should be overridden
+            bool isPartial = property.IsPartialDefinition;
+            bool isVirtualFromBase = property.IsVirtual && !SymbolEqualityComparer.Default.Equals(property.ContainingType, classSymbol);
+            bool shouldOverride = isVirtualFromBase && !prettyMembers.Any(x => x.Name == property.Name);
+            bool generate = (isPartial || shouldOverride) && !prettyMembers.Any(x => x.Name == property.Name);
 
             members.Add(new MemberToGenerate(
                 name: property.Name,
@@ -78,11 +80,40 @@ internal static class MemberProcessor
                 partitionKeyProxy: partitionKeyForNewMembers, // Proxies are for TableSetPropertyAttribute, not existing properties
                 rowKeyProxy: rowKeyForNewMembers,       // Proxies are for TableSetPropertyAttribute, not existing properties
                 withChangeTracking: withChangeTracking,
-                isPartial: property.IsPartialDefinition,
+                isPartial: isPartial,
+                isOverride: shouldOverride,
                 tagBlob: tagBlob
             ));
         }
 
         return members;
+    }
+
+    /// <summary>
+    /// Gets all properties from the class and its base classes, excluding system types.
+    /// </summary>
+    /// <param name="classSymbol">The class symbol to analyze.</param>
+    /// <returns>A list of all properties including inherited ones.</returns>
+    private static List<IPropertySymbol> GetAllProperties(INamedTypeSymbol classSymbol)
+    {
+        List<IPropertySymbol> properties = [];
+        HashSet<string> processedPropertyNames = [];
+
+        INamedTypeSymbol? currentType = classSymbol;
+        while (currentType is not null && currentType.SpecialType is SpecialType.None)
+        {
+            foreach (IPropertySymbol property in currentType.GetMembers().OfType<IPropertySymbol>())
+            {
+                if (processedPropertyNames.Add(property.Name))
+                {
+                    properties.Add(property);
+                }
+            }
+
+            currentType = currentType.BaseType;
+        }
+
+        properties.Sort((x,y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
+        return properties;
     }
 }
