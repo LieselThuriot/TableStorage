@@ -39,7 +39,7 @@ internal static class TableContextClassProcessor
         {
             if (member is IPropertySymbol property)
             {
-                if (property.Type.Name is "TableSet" or "BlobSet" or "AppendBlobSet")
+                if (!property.IsStatic && property.Type.Name is "TableSet" or "BlobSet" or "AppendBlobSet")
                 {
                     ITypeSymbol tableSetType = ((INamedTypeSymbol)property.Type).TypeArguments[0];
                     members.Add(new(
@@ -49,7 +49,9 @@ internal static class TableContextClassProcessor
                         property.Type.Name));
                 }
             }
-        }        return new ContextClassToGenerate(
+        }
+        
+        return new ContextClassToGenerate(
             classSymbol.Name, 
             classSymbol.ContainingNamespace.ToDisplayString(), 
             new EquatableArray<ContextMemberToGenerate>([.. members]));

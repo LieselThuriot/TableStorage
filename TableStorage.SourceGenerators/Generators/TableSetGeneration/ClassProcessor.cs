@@ -63,7 +63,9 @@ internal static class ClassProcessor
             withChangeTracking, 
             partitionKeyProxy ?? "null", 
             rowKeyProxy ?? "null", 
-            ct);        return new ClassToGenerate(
+            ct);
+        
+        return new ClassToGenerate(
             classSymbol.Name, 
             classSymbol.ContainingNamespace.ToDisplayString(), 
             new EquatableArray<MemberToGenerate>([.. members]), 

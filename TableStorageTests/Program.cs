@@ -462,6 +462,8 @@ namespace TableStorage.Tests.Models
     [TableSet(RowKey = "PrettyRow", SupportBlobs = true)]
     public partial class Model2
     {
+        public static string RandomHelpingString { get; } = "Test"; // Should not be generated as a property
+
         public partial int MyProperty1 { get; set; }
         public string MyProperty2 { get; set; }
         public System.DateTimeOffset? MyProperty3 { get; set; }

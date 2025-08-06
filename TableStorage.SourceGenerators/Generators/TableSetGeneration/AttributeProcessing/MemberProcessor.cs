@@ -55,6 +55,11 @@ internal static class MemberProcessor
                 continue;
             }
 
+            if (property.IsStatic)
+            {
+                continue;
+            }
+
             if (s_reservedPropertyNames.Contains(property.Name))
             {
                 continue;
