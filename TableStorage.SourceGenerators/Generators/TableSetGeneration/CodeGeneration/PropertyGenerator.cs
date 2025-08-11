@@ -106,19 +106,20 @@ internal static class PropertyGenerator
         foreach (PrettyMemberToGenerate item in classToGenerate.PrettyMembers)
         {
             bool partial = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name);
+            bool @virtual = classToGenerate.Members.Any(x => x.IsOverride && x.Name == item.Name);
 
             if (item.Proxy is "PartitionKey" or "RowKey")
             {
-                GenerateKeyProxyProperty(sb, classToGenerate, item, partial);
+                GenerateKeyProxyProperty(sb, classToGenerate, item, partial, @virtual);
             }
             else
             {
-                GenerateRegularProxyProperty(sb, classToGenerate, item, partial);
+                GenerateRegularProxyProperty(sb, classToGenerate, item, partial, @virtual);
             }
         }
     }
 
-    private static void GenerateKeyProxyProperty(StringBuilder sb, ClassToGenerate classToGenerate, PrettyMemberToGenerate item, bool partial)
+    private static void GenerateKeyProxyProperty(StringBuilder sb, ClassToGenerate classToGenerate, PrettyMemberToGenerate item, bool partial, bool @virtual)
     {
         if (classToGenerate.WithTablesSupport)
         {
@@ -132,6 +133,10 @@ internal static class PropertyGenerator
         if (partial)
         {
             sb.Append("partial ");
+        }
+        else if (@virtual)
+        {
+            sb.Append("override ");
         }
 
         sb.Append("string ").Append(item.Name);
@@ -141,13 +146,17 @@ internal static class PropertyGenerator
             sb.Append(" { get => _").Append(item.Name).Append("; set => _").Append(item.Name).AppendLine(" = value; }")
               .Append("        private string _").Append(item.Name).Append(';');
         }
+        else if (@virtual)
+        {
+            sb.Append(" { get => base.").Append(item.Name).Append("; set => base.").Append(item.Name).Append(" = value; }");
+        }
         else
         {
             sb.Append(" { get; set; }");
         }
     }
 
-    private static void GenerateRegularProxyProperty(StringBuilder sb, ClassToGenerate classToGenerate, PrettyMemberToGenerate item, bool partial)
+    private static void GenerateRegularProxyProperty(StringBuilder sb, ClassToGenerate classToGenerate, PrettyMemberToGenerate item, bool partial, bool @virtual)
     {
         if (classToGenerate.WithTablesSupport)
         {
@@ -161,6 +170,10 @@ internal static class PropertyGenerator
         if (partial)
         {
             sb.Append("partial ");
+        }
+        else if (@virtual)
+        {
+            sb.Append("override ");
         }
 
         sb.Append("string ").Append(item.Name).Append(" { get => ").Append(item.Proxy).Append("; set => ").Append(item.Proxy).Append(" = value; }");

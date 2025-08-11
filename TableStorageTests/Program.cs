@@ -446,6 +446,7 @@ namespace TableStorage.Tests.Models
 
     public abstract class BaseModel
     {
+        public virtual string PrettyRow { get; set; }
         public string CommonProperty { get; set; }
         public virtual int BaseId { get; set; }
         public virtual int BaseId2 { get; set; }

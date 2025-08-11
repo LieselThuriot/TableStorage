@@ -16,7 +16,7 @@
 		<PackageProjectUrl>https://github.com/LieselThuriot/TableStorage</PackageProjectUrl>
 		<Copyright>Liesel Thuriot</Copyright>
 		<Authors>Liesel Thuriot</Authors>
-		<MajorMinorVersion>5.1</MajorMinorVersion>
+		<MajorMinorVersion>5.2</MajorMinorVersion>
 		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
 		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
 		<VersionSuffix></VersionSuffix>

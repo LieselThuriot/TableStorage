@@ -69,8 +69,7 @@ internal static class MemberProcessor
             // Check if this is a partial property definition or a virtual property that should be overridden
             bool isPartial = property.IsPartialDefinition;
             bool isVirtualFromBase = property.IsVirtual && !SymbolEqualityComparer.Default.Equals(property.ContainingType, classSymbol);
-            bool shouldOverride = isVirtualFromBase && !prettyMembers.Any(x => x.Name == property.Name);
-            bool generate = (isPartial || shouldOverride) && !prettyMembers.Any(x => x.Name == property.Name);
+            bool generate = (isPartial || isVirtualFromBase) && !prettyMembers.Any(x => x.Name == property.Name);
 
             members.Add(new MemberToGenerate(
                 name: property.Name,
@@ -81,7 +80,7 @@ internal static class MemberProcessor
                 rowKeyProxy: rowKeyForNewMembers,       // Proxies are for TableSetPropertyAttribute, not existing properties
                 withChangeTracking: withChangeTracking,
                 isPartial: isPartial,
-                isOverride: shouldOverride,
+                isOverride: isVirtualFromBase,
                 tagBlob: tagBlob
             ));
         }

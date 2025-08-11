@@ -150,7 +150,7 @@ internal static class AttributeProcessor
 
         if (!string.IsNullOrEmpty(result))
         {
-            result = Regex.Replace(result, @"nameof\s*\(\s*([^\s)]+)\s*\)", "$1").Trim('"');
+            result = Regex.Replace(result, @"nameof\s*\(\s*(?:\w+\.)*([^\s)]+)\s*\)", "$1").Trim('"');
         }
 
         return result;
