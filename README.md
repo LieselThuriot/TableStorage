@@ -4,6 +4,7 @@ Streamlined way of working with Azure Data Tables and Blobs.
 ## Installation
 
 ```bash
+dotnet add package TableStorage.Core
 dotnet add package TableStorage
 dotnet add package TableStorage.Blobs
 ```

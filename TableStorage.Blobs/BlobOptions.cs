@@ -19,6 +19,7 @@ public sealed class BlobOptions
 
     internal IQueryHandlerFactory QueryHandlerFactory { get; set; }
 }
+
 internal interface IQueryHandlerFactory
 {
     public IAsyncEnumerable<(TClient client, LazyAsync<T?> entity)> QueryAsync<T, TClient>(BaseBlobSet<T, TClient> baseBlobSet, Expression<Func<T, bool>> filter, CancellationToken cancellationToken)

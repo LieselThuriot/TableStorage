@@ -39,7 +39,7 @@ services.AddMyTableContext(connectionString,
     },
     configureBlobs: x =>
     {
-        x.UseTags = false;
+        //x.UseTags = false;
         x.CreateContainerIfNotExists = create;
         x.Serializer = new HybridSerializer();
         x.EnableCompilationAtRuntime();

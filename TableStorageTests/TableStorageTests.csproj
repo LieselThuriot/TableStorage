@@ -6,6 +6,8 @@
 		<UserSecretsId>67f67690-8436-4eea-9077-95dcc941c6db</UserSecretsId>
 		<PublishAot>false</PublishAot>
 		<TableStorageSerializerContext>TableStorage.Tests.Contexts.ModelSerializationContext</TableStorageSerializerContext>
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<IsPackable>false</IsPackable>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(PublishAot)' == 'true'">
@@ -43,11 +45,11 @@
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(Configuration)'=='Release'">
-		<PackageReference Include="TableStorage.Core" Version="5.1.0-preview.3" />
-		<PackageReference Include="TableStorage" Version="5.1.0-preview.4" />
-		<PackageReference Include="TableStorage.RuntimeCompilations" Version="5.1.0-preview.1" />
-		<PackageReference Include="TableStorage.Blobs" Version="5.1.0-preview.1" />
-		<PackageReference Include="TableStorage.Blobs.RuntimeCompilations" Version="5.1.0-preview.1" />
+		<PackageReference Include="TableStorage.Core" Version="5.1.0" />
+		<PackageReference Include="TableStorage" Version="5.1.0" />
+		<PackageReference Include="TableStorage.RuntimeCompilations" Version="5.1.0" />
+		<PackageReference Include="TableStorage.Blobs" Version="5.1.0" />
+		<PackageReference Include="TableStorage.Blobs.RuntimeCompilations" Version="5.1.0" />
 	</ItemGroup>
 
 	<ItemGroup>

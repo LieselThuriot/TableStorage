@@ -10,6 +10,8 @@ Provides runtime LINQ expression compilation and advanced query helpers for work
 ## Installation
 
 ```bash
+dotnet add package TableStorage.Core
+dotnet add package TableStorage
 dotnet add package TableStorage.RuntimeCompilations
 ```
 
