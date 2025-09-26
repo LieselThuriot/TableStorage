@@ -73,6 +73,44 @@ internal static class Helpers
         }
     }
 
+    public static Expression<Func<T, bool>> CreateFindPredicate<T>(IReadOnlyList<(string partitionKey, string rowKey)> keys, string? partitionKeyProxy, string? rowKeyProxy)
+    {
+        if (keys is null || keys.Count is 0)
+        {
+            throw new NotSupportedException("At least one keypair needs to be passed");
+        }
+
+        ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
+        Expression partitionAccess = Expression.PropertyOrField(parameter, partitionKeyProxy ?? "PartitionKey");
+        Expression rowAccess = Expression.PropertyOrField(parameter, rowKeyProxy ?? "RowKey");
+
+        Expression<Func<T, bool>> filter = default!;
+
+        for (int i = 0; i < keys.Count; i++)
+        {
+            (string partition, string row) = keys[i];
+
+            // constants
+            Expression partitionConstant = Expression.Constant(partition, typeof(string));
+            Expression rowConstant = Expression.Constant(row, typeof(string));
+
+            // PartitionKey == partition && RowKey == row
+            Expression equalsPartition = Expression.Equal(partitionAccess, partitionConstant);
+            Expression equalsRow = Expression.Equal(rowAccess, rowConstant);
+            Expression body = Expression.AndAlso(equalsPartition, equalsRow);
+
+            var predicate = Expression.Lambda<Func<T, bool>>(body, parameter);
+
+            filter = i switch
+            {
+                0 => predicate,
+                _ => Expression.Lambda<Func<T, bool>>(Expression.OrElse(filter.Body, predicate.Body), parameter),
+            };
+        }
+
+        return filter;
+    }
+
     public static async Task<T> FirstAsync<T>(IAsyncEnumerable<T> table, CancellationToken token)
     {
         T? result = await FirstOrDefaultAsync(table, token);

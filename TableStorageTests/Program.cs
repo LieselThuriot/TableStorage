@@ -115,6 +115,9 @@ await context.Models2.UpsertEntityAsync(new()
 List<Model2> models2 = await context.Models2.ToListAsync(); //should just return all my big models
 Debug.Assert(models2.Count > 0);
 
+List<Model2> findResults = await context.Models2.FindAsync(models2.Select(x => (x.PartitionKey, x.PrettyRow)).ToList()).ToListAsync();
+Debug.Assert(findResults?.Count == models2.Count); // Should return all models2
+
 List<Model2> enumFilters = await context.Models2.Where(x => x.MyProperty7 == ModelEnum.Yes && x.MyProperty8 == ModelEnum.No).ToListAsync(); //enum filtering should work
 Debug.Assert(enumFilters.Count > 0);
 
@@ -284,6 +287,9 @@ await context.Models4Blob.AddEntityAsync(new()
     MyProperty2 = "hallo 2"
 });
 
+var findBlobResults = await context.Models4Blob.FindAsync(("root", blobId1), ("root", blobId2)).ToListAsync();
+Debug.Assert(findBlobResults.Count == 2);
+
 Model4? blob1 = await context.Models4Blob.GetEntityOrDefaultAsync("root", blobId1);
 Debug.Assert(blob1 != null);
 Debug.Assert(blob1.MyProperty1 == 1 && blob1.MyProperty2 == "hallo 1");
@@ -375,6 +381,23 @@ Debug.Assert(jsonBlob.Entries is not null);
 Debug.Assert(jsonBlob.Entries.Length is 1);
 Debug.Assert(jsonBlob.Entries[0].Creation == appendModel5.Entries[0].Creation);
 Debug.Assert(jsonBlob.Entries[0].Duration == appendModel5.Entries[0].Duration);
+
+await context.Models5BlobInJson.AddEntityAsync(new()
+{
+    Id = "root",
+    ContinuationToken = "test2",
+    Entries =
+    [
+        new Model5Entry
+        {
+            Creation = DateTimeOffset.UtcNow,
+            Duration = Random.Shared.Next(500, 2000)
+        }
+    ]
+});
+
+var findAppendBlobResults = await context.Models5BlobInJson.FindAsync(("root", "test"), ("root", "test2")).ToListAsync();
+Debug.Assert(findAppendBlobResults.Count == 2);
 
 await context.Models4Blob.DeleteAllEntitiesAsync("root");
 

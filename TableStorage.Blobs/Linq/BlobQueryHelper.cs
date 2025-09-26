@@ -1,5 +1,6 @@
 ﻿using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
+using TableStorage.Visitors;
 
 namespace TableStorage.Linq;
 
@@ -60,6 +61,12 @@ public static class BlobSetQueryHelper
         return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
     }
 
+    public static IFilteredBlobQueryable<T> FindAsync<T>(this BlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
+        where T : IBlobEntity
+    {
+        return table.Where(Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy));
+    }
+
     public static IFilteredBlobQueryable<T> Where<T>(this AppendBlobSet<T> table, Expression<Func<T, bool>> predicate)
         where T : IBlobEntity
     {
@@ -106,5 +113,11 @@ public static class BlobSetQueryHelper
         where T : IBlobEntity
     {
         return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+    }
+
+    public static IFilteredBlobQueryable<T> FindAsync<T>(this AppendBlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
+        where T : IBlobEntity
+    {
+        return table.Where(Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy));
     }
 }
