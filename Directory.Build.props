@@ -10,12 +10,27 @@
 		<RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
 		<AnalysisLevel>latest</AnalysisLevel>
+	</PropertyGroup>
+	
+	<PropertyGroup>
 		<Company>Liesel Thuriot</Company>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<RepositoryUrl>https://github.com/LieselThuriot/TableStorage</RepositoryUrl>
 		<PackageProjectUrl>https://github.com/LieselThuriot/TableStorage</PackageProjectUrl>
 		<Copyright>Liesel Thuriot</Copyright>
 		<Authors>Liesel Thuriot</Authors>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedResources>true</EmbedUntrackedResources>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<IncludeSource>true</IncludeSource>
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+	
+	<PropertyGroup>
 		<MajorMinorVersion>5.3</MajorMinorVersion>
 		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
 		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
@@ -27,6 +42,10 @@
 	<ItemGroup>
 		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="4.14.0" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.14.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
 	</ItemGroup>
 
 	<Target Name="UseExplicitPackageVersions" BeforeTargets="GenerateNuspec">
