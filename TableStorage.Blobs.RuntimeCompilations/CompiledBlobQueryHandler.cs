@@ -22,16 +22,16 @@ internal readonly struct CompiledBlobQueryHandler<T, TClient>(BaseBlobSet<T, TCl
         BlobQueryVisitor visitor = new(_blobset.PartitionKeyProxy, _blobset.RowKeyProxy, _blobset.Tags);
         Expression<Func<T, bool>> visitedFilter = visitor.VisitAndConvert(filter, nameof(QueryAsync));
 
-        if (!visitor.Error)
+        if (!visitor.Error && visitor.Filter is not null) // Filter can be null e.g. when we have a silly query like x => True
         {
             if (_blobset.Options.UseTags)
             {
                 if (visitor.SimpleFilter)
                 {
-                    return _blobset.IterateBlobsByTag(visitor.Filter!, cancellationToken);
+                    return _blobset.IterateBlobsByTag(visitor.Filter, cancellationToken);
                 }
 
-                return IterateBlobsByTagAndComplexFilter(visitor.Filter!, filter, cancellationToken);
+                return IterateBlobsByTagAndComplexFilter(visitor.Filter, filter, cancellationToken);
             }
         }
 

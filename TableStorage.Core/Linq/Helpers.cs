@@ -73,6 +73,15 @@ internal static class Helpers
         }
     }
 
+    public static Expression<Func<T, bool>> CreateFindPredicate<T>(string partitionKey, string rowKey, string? partitionKeyProxy, string? rowKeyProxy)
+    {
+        ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
+        Expression partitionAccess = Expression.PropertyOrField(parameter, partitionKeyProxy ?? "PartitionKey");
+        Expression rowAccess = Expression.PropertyOrField(parameter, rowKeyProxy ?? "RowKey");
+
+        return CreateFindPredicate<T>(parameter, partitionAccess, rowAccess, partitionKey, rowKey);
+    }
+
     public static Expression<Func<T, bool>> CreateFindPredicate<T>(IReadOnlyList<(string partitionKey, string rowKey)> keys, string? partitionKeyProxy, string? rowKeyProxy)
     {
         if (keys is null || keys.Count is 0)
@@ -90,16 +99,7 @@ internal static class Helpers
         {
             (string partition, string row) = keys[i];
 
-            // constants
-            Expression partitionConstant = Expression.Constant(partition, typeof(string));
-            Expression rowConstant = Expression.Constant(row, typeof(string));
-
-            // PartitionKey == partition && RowKey == row
-            Expression equalsPartition = Expression.Equal(partitionAccess, partitionConstant);
-            Expression equalsRow = Expression.Equal(rowAccess, rowConstant);
-            Expression body = Expression.AndAlso(equalsPartition, equalsRow);
-
-            var predicate = Expression.Lambda<Func<T, bool>>(body, parameter);
+            Expression<Func<T, bool>> predicate = CreateFindPredicate<T>(parameter, partitionAccess, rowAccess, partition, row);
 
             filter = i switch
             {
@@ -109,6 +109,20 @@ internal static class Helpers
         }
 
         return filter;
+    }
+
+    private static Expression<Func<T, bool>> CreateFindPredicate<T>(ParameterExpression parameter, Expression partitionAccess, Expression rowAccess, string partition, string row)
+    {
+        // constants
+        Expression partitionConstant = Expression.Constant(partition, typeof(string));
+        Expression rowConstant = Expression.Constant(row, typeof(string));
+
+        // PartitionKey == partition && RowKey == row
+        Expression equalsPartition = Expression.Equal(partitionAccess, partitionConstant);
+        Expression equalsRow = Expression.Equal(rowAccess, rowConstant);
+        Expression body = Expression.AndAlso(equalsPartition, equalsRow);
+
+        return Expression.Lambda<Func<T, bool>>(body, parameter);
     }
 
     public static async Task<T> FirstAsync<T>(IAsyncEnumerable<T> table, CancellationToken token)

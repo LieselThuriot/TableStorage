@@ -1,6 +1,5 @@
 ﻿using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
-using TableStorage.Visitors;
 
 namespace TableStorage.Linq;
 
@@ -58,13 +57,15 @@ public static class BlobSetQueryHelper
     public static Task<T?> FindAsync<T>(this BlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
         where T : IBlobEntity
     {
-        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(partitionKey, rowKey, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate).FirstOrDefaultAsync(token);
     }
 
     public static IFilteredBlobQueryable<T> FindAsync<T>(this BlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
         where T : IBlobEntity
     {
-        return table.Where(Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy));
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate);
     }
 
     public static IFilteredBlobQueryable<T> Where<T>(this AppendBlobSet<T> table, Expression<Func<T, bool>> predicate)
@@ -112,12 +113,14 @@ public static class BlobSetQueryHelper
     public static Task<T?> FindAsync<T>(this AppendBlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
         where T : IBlobEntity
     {
-        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(partitionKey, rowKey, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate).FirstOrDefaultAsync(token);
     }
 
     public static IFilteredBlobQueryable<T> FindAsync<T>(this AppendBlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
         where T : IBlobEntity
     {
-        return table.Where(Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy));
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate);
     }
 }

@@ -9,6 +9,7 @@ public interface IStorageSet<T> : IAsyncEnumerable<T>
 
     public Task AddEntityAsync(T entity, CancellationToken cancellationToken = default);
     public Task DeleteEntityAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default);
+    public Task DeleteEntityAsync(T entity, CancellationToken cancellationToken = default);
     public Task<T?> GetEntityAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default);
     public Task<T?> GetEntityOrDefaultAsync(string partitionKey, string rowKey, CancellationToken cancellationToken = default);
     public IAsyncEnumerable<T> QueryAsync(CancellationToken cancellationToken = default);

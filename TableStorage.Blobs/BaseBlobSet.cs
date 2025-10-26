@@ -2,7 +2,6 @@
 using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 namespace TableStorage;
 

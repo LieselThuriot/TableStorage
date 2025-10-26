@@ -39,6 +39,12 @@ public abstract class TableSet<T> : IStorageSet<T>
         await client.DeleteEntityAsync(partitionKey, rowKey, ifMatch, cancellationToken);
     }
 
+    public async Task DeleteEntityAsync(T entity, CancellationToken cancellationToken = default)
+    {
+        TableClient client = await LazyClient;
+        await client.DeleteEntityAsync(entity.PartitionKey, entity.RowKey, entity.ETag, cancellationToken);
+    }
+
     public Task SubmitTransactionAsync(IEnumerable<TableTransactionAction> transactionActions, CancellationToken cancellationToken = default)
     {
         return SubmitTransactionAsync(transactionActions, Options.TransactionSafety, cancellationToken);

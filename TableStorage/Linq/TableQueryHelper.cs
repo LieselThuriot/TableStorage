@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using TableStorage.Visitors;
 
 namespace TableStorage.Linq;
 
@@ -62,12 +61,14 @@ public static class TableQueryHelper
     public static Task<T?> FindAsync<T>(this TableSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
         where T : class, ITableEntity, new()
     {
-        return table.Where(x => x.PartitionKey == partitionKey && x.RowKey == rowKey).FirstOrDefaultAsync(token);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(partitionKey, rowKey, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate).FirstOrDefaultAsync(token);
     }
 
     public static IFilteredTableQueryable<T> FindAsync<T>(this TableSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
         where T : class, ITableEntity, new()
     {
-        return table.Where(Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy));
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(keys, table.PartitionKeyProxy, table.RowKeyProxy);
+        return table.Where(predicate);
     }
 }

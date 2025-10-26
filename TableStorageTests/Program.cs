@@ -15,6 +15,7 @@ using TableStorage.Linq;
 using TableStorage.Tests.Contexts;
 using TableStorage.Tests.Models;
 
+#region Test Configuration
 var config = new ConfigurationBuilder()
     .AddEnvironmentVariables()
     .AddJsonFile("appsettings.json", true)
@@ -48,11 +49,19 @@ ServiceProvider provider = services.BuildServiceProvider();
 
 MyTableContext context = provider.GetRequiredService<MyTableContext>();
 
+#endregion Test Configuration
+#region Test Setup 
+// One time setup to clear previous tests and insert test data
 await context.Models1.Where(x => true).BatchDeleteAsync();
 await context.Models2.Where(x => true).BatchDeleteAsync();
 await context.Models3.Where(x => true).BatchDeleteAsync();
 await context.Models4.Where(x => true).BatchDeleteAsync();
 await context.Models5.Where(x => true).BatchDeleteAsync();
+await context.Models1Blob.Where(x => true).BatchDeleteAsync();
+await context.Models4Blob.Where(x => true).BatchDeleteAsync();
+await context.Models2Blob.Where(x => true).BatchDeleteAsync();
+await context.Models5Blob.Where(x => true).BatchDeleteAsync();
+await context.Models5BlobInJson.Where(x => true).BatchDeleteAsync();
 
 await context.Models1.UpsertEntityAsync(new()
 {
@@ -111,6 +120,10 @@ await context.Models2.UpsertEntityAsync(new()
     MyProperty7 = ModelEnum.Yes,
     MyProperty8 = ModelEnum.No
 });
+
+#endregion Test Setup
+
+#region Tests
 
 List<Model2> models2 = await context.Models2.ToListAsync(); //should just return all my big models
 Debug.Assert(models2.Count > 0);
@@ -290,6 +303,9 @@ await context.Models4Blob.AddEntityAsync(new()
 var findBlobResults = await context.Models4Blob.FindAsync(("root", blobId1), ("root", blobId2)).ToListAsync();
 Debug.Assert(findBlobResults.Count == 2);
 
+var findSingleBlobResult = await context.Models4Blob.FindAsync("root", blobId1);
+Debug.Assert(findSingleBlobResult is not null);
+
 Model4? blob1 = await context.Models4Blob.GetEntityOrDefaultAsync("root", blobId1);
 Debug.Assert(blob1 != null);
 Debug.Assert(blob1.MyProperty1 == 1 && blob1.MyProperty2 == "hallo 1");
@@ -340,7 +356,7 @@ async Task AppendingTest()
     //if (await context.Models5Blob.ExistsAsync("root", "test"))
     try
     {
-        using Stream stream = BinaryData.FromString($"|{DateTimeOffset.UtcNow.AddSeconds(2).ToUnixTimeSeconds()};{Random.Shared.Next(500, 2000)}").ToStream();
+        await using Stream stream = BinaryData.FromString($"|{DateTimeOffset.UtcNow.AddSeconds(2).ToUnixTimeSeconds()};{Random.Shared.Next(500, 2000)}").ToStream();
         await context.Models5Blob.AppendAsync("root", "test", stream);
     }
     //else
@@ -458,6 +474,10 @@ Debug.Assert(blobSearch.All(x => x.PrettyRow == "pretty2"));
 Debug.Assert(blobSearch.All(x => x.MyProperty1 == 2));
 #endif
 
+#endregion Tests
+
+#region Models
+
 #nullable disable
 namespace TableStorage.Tests.Models
 {
@@ -525,11 +545,20 @@ namespace TableStorage.Tests.Models
     [ProtoContract(IgnoreListHandling = true)] // Important to ignore list handling because we are generating an IDictionary implementation that is not supported by protobuf
     public partial class Model4
     {
-        [ProtoMember(1)] public partial string PrettyPartition { get; set; } // We can partial the PK and RowKey to enable custom serialization attributes
-        [ProtoMember(2)] public partial string PrettyRow { get; set; }
-        [ProtoMember(3)] public partial int MyProperty1 { get; set; }
-        [ProtoMember(4)] public partial string MyProperty2 { get; set; }
-        [ProtoMember(5)] public partial string? MyNullableProperty2 { get; set; }
+        [ProtoMember(1)]
+        public partial string PrettyPartition { get; set; } // We can partial the PK and RowKey to enable custom serialization attributes
+
+        [ProtoMember(2)]
+        public partial string PrettyRow { get; set; }
+
+        [ProtoMember(3)]
+        public partial int MyProperty1 { get; set; }
+
+        [ProtoMember(4)]
+        public partial string MyProperty2 { get; set; }
+
+        [ProtoMember(5)]
+        public partial string? MyNullableProperty2 { get; set; }
     }
 #nullable disable
 
@@ -588,6 +617,9 @@ namespace TableStorage.Tests.Contexts
     [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web,
         UseStringEnumConverter = true,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonSerializable(typeof(Model))]
+    [JsonSerializable(typeof(Model2))]
+    [JsonSerializable(typeof(Model4))]
     [JsonSerializable(typeof(Model5))]
     public partial class ModelSerializationContext : JsonSerializerContext;
 }
@@ -684,3 +716,5 @@ public sealed class HybridSerializer : IBlobSerializer
         return BinaryData.FromObjectAsJson(entity, ModelSerializationContext.Default.Options);
     }
 }
+
+#endregion Models

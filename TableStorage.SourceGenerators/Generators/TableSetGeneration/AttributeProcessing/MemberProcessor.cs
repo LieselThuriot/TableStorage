@@ -1,5 +1,4 @@
 using Microsoft.CodeAnalysis;
-using System.Collections.Immutable;
 using TableStorage.SourceGenerators.Models;
 using TableStorage.SourceGenerators.Utilities;
 
