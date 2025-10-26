@@ -26,6 +26,6 @@ public sealed class FuncComparer<T, TResult>(Func<T, TResult> selector, IEqualit
     public int GetHashCode(T obj)
     {
         TResult? selection = _selector(obj);
-        return selection is null ? 0 : selection.GetHashCode();
+        return selection is null ? 0 : _equalityComparer.GetHashCode(selection);
     }
 }
