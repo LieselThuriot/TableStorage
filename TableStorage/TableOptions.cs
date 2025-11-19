@@ -14,10 +14,9 @@ public sealed class TableOptions
 
     public TransactionSafety TransactionSafety { get; set; } = TransactionSafety.Enabled;
 
-    private int _transactionChunkSize = 100;
     public int TransactionChunkSize
     {
-        get => _transactionChunkSize;
+        get;
         set
         {
             if (value < 1)
@@ -25,9 +24,9 @@ public sealed class TableOptions
                 throw new ArgumentOutOfRangeException(nameof(value), "Transaction chunk size must be greater than 0.");
             }
 
-            _transactionChunkSize = value;
+            field = value;
         }
-    }
+    } = 100;
 
     public bool ChangesOnly { get; set; }
 }

@@ -28,6 +28,7 @@
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<IncludeSource>true</IncludeSource>
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+		<PackageOutputPath>$(SolutionDir)/Packages</PackageOutputPath>
 	</PropertyGroup>
 	
 	<PropertyGroup>

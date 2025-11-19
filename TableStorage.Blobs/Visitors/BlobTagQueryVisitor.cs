@@ -47,13 +47,29 @@ internal sealed class BlobTagQueryVisitor<T>(string? partitionKeyProxy, string? 
             name = "row";
         }
 
-        if (!_tags.Contains(name))
+        if (_tags.Contains(name))
         {
-            return node;
+            var expression = Visit(node.Expression);
+            return Expression.Call(expression, BlobTagAccessor.MethodInfo, Expression.Constant(name));
         }
 
-        var expression = Visit(node.Expression);
-        return Expression.Call(expression, BlobTagAccessor.MethodInfo, Expression.Constant(name));
+        if (node.Expression is ConstantExpression constant)
+        {
+            object container = constant.Value;
+            MemberInfo memberInfo = node.Member;
+
+            if (memberInfo.MemberType is MemberTypes.Field)
+            {
+                return Expression.Constant(((FieldInfo)memberInfo).GetValue(container));
+            }
+
+            if (memberInfo.MemberType is MemberTypes.Property)
+            {
+                return Expression.Constant(((PropertyInfo)memberInfo).GetValue(container, null));
+            }
+        }
+
+        return node;
     }
 
     protected override Expression VisitInvocation(InvocationExpression node)
