@@ -138,7 +138,7 @@ internal static class PropertyGenerator
 
         // Check if the partial property is marked with 'new' modifier
         bool isNew = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name && x.IsNew);
-        
+
         if (isNew)
         {
             sb.Append("new ");

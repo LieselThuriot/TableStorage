@@ -1,4 +1,5 @@
 ﻿namespace TableStorage.SourceGenerators;
+
 internal static class Header
 {
     public const string Value = """

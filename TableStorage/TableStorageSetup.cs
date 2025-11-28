@@ -1,4 +1,5 @@
 ﻿namespace TableStorage;
+
 public static class TableStorageSetup
 {
     public static ICreator BuildCreator(string connectionString, Action<TableOptions>? configure = null)

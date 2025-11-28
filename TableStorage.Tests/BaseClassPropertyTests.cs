@@ -24,7 +24,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition1" && x.PrettyRow == "row1")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition1", retrieved.PrettyPartition);
         Assert.Equal("row1", retrieved.PrettyRow);
@@ -50,7 +50,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition2" && x.PrettyRow == "row2")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition2", retrieved.PrettyPartition);
         Assert.Equal("row2", retrieved.PrettyRow);
@@ -76,7 +76,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition3" && x.PrettyRow == "row3")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition3", retrieved.PrettyPartition);
         Assert.Equal("row3", retrieved.PrettyRow);
@@ -103,7 +103,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition4" && x.PrettyRow == "row4")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition4", retrieved.PrettyPartition);
         Assert.Equal("row4", retrieved.PrettyRow);
@@ -130,7 +130,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition5" && x.PrettyRow == "row5")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition5", retrieved.PrettyPartition);
         Assert.Equal("row5", retrieved.PrettyRow);
@@ -142,11 +142,11 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
     {
         // This test validates at compile time that there are no duplicate property definitions
         // If the code compiles, this test passes
-        
+
         // Should only have one PrettyPartition property
         var partitionProperty = typeof(ModelBothKeysInBase).GetProperty(nameof(ModelBothKeysInBase.PrettyPartition));
         Assert.NotNull(partitionProperty);
-        
+
         // Should only have one PrettyRow property
         var rowProperty = typeof(ModelBothKeysInBase).GetProperty(nameof(ModelBothKeysInBase.PrettyRow));
         Assert.NotNull(rowProperty);
@@ -191,7 +191,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
             .Where(x => x.PrettyPartition == "partition6" && x.PrettyRow == "row6")
             .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
-        
+
         Assert.NotNull(retrieved);
         Assert.Equal("partition6", retrieved.PrettyPartition);
         Assert.Equal("row6", retrieved.PrettyRow);
@@ -204,7 +204,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Verify that properties are correctly overridden
         var partitionProperty = typeof(ModelBothKeysInBaseWithOverride).GetProperty(nameof(ModelBothKeysInBaseWithOverride.PrettyPartition));
         Assert.NotNull(partitionProperty);
-        
+
         var rowProperty = typeof(ModelBothKeysInBaseWithOverride).GetProperty(nameof(ModelBothKeysInBaseWithOverride.PrettyRow));
         Assert.NotNull(rowProperty);
 

@@ -189,7 +189,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
     internal async Task<T?> DownloadAsync(TClient blob, CancellationToken cancellationToken)
     {
         using Stream stream = await GetStreamAsync(blob, cancellationToken);
-        
+
         if (stream.Length is 0)
         {
             return default;

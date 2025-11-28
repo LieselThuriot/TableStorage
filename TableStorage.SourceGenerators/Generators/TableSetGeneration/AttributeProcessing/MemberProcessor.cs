@@ -69,7 +69,7 @@ internal static class MemberProcessor
             bool isPartial = property.IsPartialDefinition;
             bool isVirtualFromBase = property.IsVirtual && !SymbolEqualityComparer.Default.Equals(property.ContainingType, classSymbol);
             bool generate = (isPartial || isVirtualFromBase) && !prettyMembers.Any(x => x.Name == property.Name);
-            
+
             // Check if the property hides a base member (has 'new' modifier)
             bool isNew = IsPropertyMarkedAsNew(property);
 
@@ -139,6 +139,7 @@ internal static class MemberProcessor
                 }
             }
         }
+
         return false;
     }
 }

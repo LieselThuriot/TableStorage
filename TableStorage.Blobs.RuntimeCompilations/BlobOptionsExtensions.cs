@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
 namespace TableStorage;
+
 public static class BlobOptionsExtensions
 {
     public static void EnableCompilationAtRuntime(this BlobOptions options)

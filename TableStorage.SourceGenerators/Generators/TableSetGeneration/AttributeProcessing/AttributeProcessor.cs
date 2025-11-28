@@ -87,7 +87,7 @@ internal static class AttributeProcessor
     private static bool PropertyExistsInBaseClass(INamedTypeSymbol classSymbol, string propertyName)
     {
         INamedTypeSymbol? currentBase = classSymbol.BaseType;
-        
+
         while (currentBase is not null && currentBase.SpecialType is SpecialType.None)
         {
             var property = currentBase.GetMembers(propertyName).OfType<IPropertySymbol>().FirstOrDefault();
@@ -95,10 +95,10 @@ internal static class AttributeProcessor
             {
                 return true;
             }
-            
+
             currentBase = currentBase.BaseType;
         }
-        
+
         return false;
     }
 

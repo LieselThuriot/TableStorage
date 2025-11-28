@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 
 namespace TableStorage;
+
 public interface IStorageSet<T> : IAsyncEnumerable<T>
 {
     public string EntityType { get; }

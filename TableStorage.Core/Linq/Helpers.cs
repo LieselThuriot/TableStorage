@@ -1,6 +1,7 @@
 ﻿using System.Linq.Expressions;
 
 namespace TableStorage.Linq;
+
 internal static class Helpers
 {
     public static Expression<Func<T, bool>> CreateExistsInFilter<T, TElement>(this Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements)
