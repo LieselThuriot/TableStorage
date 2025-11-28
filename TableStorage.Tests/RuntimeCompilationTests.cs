@@ -395,7 +395,6 @@ public class RuntimeCompilationTests(AzuriteFixture azuriteFixture) : AzuriteTes
 
         int result = await Context.Models1
             .Where(x => x.PrettyName == "root" && x.PrettyRow == mergeTest.PrettyRow)
-            .AsAsyncEnumerable()
             .Select(x => x.MyProperty1)
             .FirstAsync();
 

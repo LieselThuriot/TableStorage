@@ -22,7 +22,6 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert - Should be able to retrieve and properties should match
         var retrieved = await Context.ModelBothKeysInBase
             .Where(x => x.PrettyPartition == "partition1" && x.PrettyRow == "row1")
-            .AsAsyncEnumerable()
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
@@ -48,7 +47,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert
         var retrieved = await Context.ModelPartitionKeyInBase
             .Where(x => x.PrettyPartition == "partition2" && x.PrettyRow == "row2")
-            .AsAsyncEnumerable()
+
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
@@ -74,7 +73,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert
         var retrieved = await Context.ModelRowKeyInBase
             .Where(x => x.PrettyPartition == "partition3" && x.PrettyRow == "row3")
-            .AsAsyncEnumerable()
+
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
@@ -101,7 +100,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert
         var retrieved = await Context.ModelNoKeysInBase
             .Where(x => x.PrettyPartition == "partition4" && x.PrettyRow == "row4")
-            .AsAsyncEnumerable()
+
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
@@ -128,7 +127,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert
         var retrieved = await Context.ModelBothKeysInBaseWithPartial
             .Where(x => x.PrettyPartition == "partition5" && x.PrettyRow == "row5")
-            .AsAsyncEnumerable()
+
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
@@ -189,7 +188,7 @@ public class BaseClassPropertyTests(AzuriteFixture azuriteFixture) : AzuriteTest
         // Assert
         var retrieved = await Context.ModelBothKeysInBaseWithOverride
             .Where(x => x.PrettyPartition == "partition6" && x.PrettyRow == "row6")
-            .AsAsyncEnumerable()
+
             .FirstOrDefaultAsync();
 
         Assert.NotNull(retrieved);
