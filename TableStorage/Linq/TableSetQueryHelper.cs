@@ -81,7 +81,7 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
     {
         IAsyncEnumerable<T> query = _filter is null
                     ? Table.QueryAsync((string?)null, _amount, _fields, cancellationToken)
-                    : Table.QueryAsync(_filter, _amount, _fields, cancellationToken);
+                    : Table.InternalQueryAsync(_filter, _amount, _fields, cancellationToken);
 
         if (_amount.HasValue)
         {

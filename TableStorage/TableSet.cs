@@ -1,5 +1,6 @@
 ﻿using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
+using TableStorage.Visitors;
 
 namespace TableStorage;
 
@@ -134,7 +135,18 @@ public abstract class TableSet<T> : IStorageSet<T>
 
     public IAsyncEnumerable<T> QueryAsync(Expression<Func<T, bool>> filter, CancellationToken cancellationToken = default) => QueryAsync(filter, null, null, cancellationToken);
 
-    public virtual async IAsyncEnumerable<T> QueryAsync(Expression<Func<T, bool>> filter, int? maxPerPage, IEnumerable<string>? select, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public virtual IAsyncEnumerable<T> QueryAsync(Expression<Func<T, bool>> filter, int? maxPerPage, IEnumerable<string>? select, CancellationToken cancellationToken = default)
+    {
+        if (PartitionKeyProxy is not null || RowKeyProxy is not null)
+        {
+            WhereVisitor visitor = new(PartitionKeyProxy, RowKeyProxy, Type);
+            filter = (Expression<Func<T, bool>>)visitor.Visit(filter);
+        }
+
+        return InternalQueryAsync(filter, maxPerPage, select, cancellationToken);
+    }
+
+    internal virtual async IAsyncEnumerable<T> InternalQueryAsync(Expression<Func<T, bool>> filter, int? maxPerPage, IEnumerable<string>? select, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         TableClient client = await LazyClient;
         await foreach (T entity in client.QueryAsync(filter, maxPerPage ?? Options.PageSize, select, cancellationToken))
