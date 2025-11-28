@@ -32,7 +32,7 @@
 	</PropertyGroup>
 	
 	<PropertyGroup>
-		<MajorMinorVersion>5.4</MajorMinorVersion>
+		<MajorMinorVersion>5.5</MajorMinorVersion>
 		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
 		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
 		<VersionSuffix></VersionSuffix>

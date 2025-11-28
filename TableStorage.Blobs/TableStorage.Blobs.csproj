@@ -5,7 +5,7 @@
 		<PackageReadmeFile>README.md</PackageReadmeFile>
 		<PackageIcon>TableStorage.png</PackageIcon>
 		<RootNamespace>TableStorage</RootNamespace>
-		<VersionPrefix>$(MajorMinorVersion).1</VersionPrefix>
+		<VersionPrefix>$(MajorMinorVersion).0</VersionPrefix>
 	</PropertyGroup>
 
 	<ItemGroup>
