@@ -108,6 +108,12 @@ internal static class PropertyGenerator
             bool partial = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name);
             bool @virtual = classToGenerate.Members.Any(x => x.IsOverride && x.Name == item.Name);
 
+            // Skip generation if the property exists in base class and is not being overridden with partial
+            if (item.ExistsInBaseClass && !partial)
+            {
+                continue;
+            }
+
             if (item.Proxy is "PartitionKey" or "RowKey")
             {
                 GenerateKeyProxyProperty(sb, classToGenerate, item, partial, @virtual);
@@ -129,6 +135,14 @@ internal static class PropertyGenerator
 
         sb.Append(@"
         public ");
+
+        // Check if the partial property is marked with 'new' modifier
+        bool isNew = classToGenerate.Members.Any(x => x.IsPartial && x.Name == item.Name && x.IsNew);
+        
+        if (isNew)
+        {
+            sb.Append("new ");
+        }
 
         if (partial)
         {

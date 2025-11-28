@@ -42,7 +42,7 @@ internal static class ClassProcessor
             return null;
         }
 
-        var (partitionKeyProxy, rowKeyProxy, prettyMembers) = AttributeProcessor.ProcessTableSetAttributeArguments(tableSetAttributeSyntax);
+        var (partitionKeyProxy, rowKeyProxy, prettyMembers) = AttributeProcessor.ProcessTableSetAttributeArguments(tableSetAttributeSyntax, classSymbol);
 
         bool withBlobSupport = AttributeProcessor.GetArgumentValue(tableSetAttributeSyntax, "SupportBlobs") == "true";
         bool withTablesSupport = AttributeProcessor.GetArgumentValue(tableSetAttributeSyntax, "DisableTables") != "true";

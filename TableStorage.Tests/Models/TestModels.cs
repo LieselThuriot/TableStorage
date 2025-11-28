@@ -1,7 +1,7 @@
 #nullable disable
 
-using System.Net;
 using ProtoBuf;
+using System.Net;
 
 namespace TableStorage.Tests.Models;
 
@@ -131,4 +131,84 @@ public static class Mapper
     {
         return new(model.MyProperty1, model.MyProperty2);
     }
+}
+
+// Base class tests for property inheritance
+public abstract class BaseClassWithBothKeys
+{
+    public string PrettyPartition { get; set; }
+    public string PrettyRow { get; set; }
+}
+
+public abstract class BaseClassWithOnlyPartitionKey
+{
+    public string PrettyPartition { get; set; }
+}
+
+public abstract class BaseClassWithOnlyRowKey
+{
+    public string PrettyRow { get; set; }
+}
+
+public abstract class BaseClassWithNoKeys
+{
+    public string SomeOtherProperty { get; set; }
+}
+
+public abstract class BaseClassWithBothKeysPartial
+{
+    public string PrettyPartition { get; set; }
+    public string PrettyRow { get; set; }
+}
+
+public abstract class BaseClassWithVirtualKeys
+{
+    public virtual string PrettyPartition { get; set; }
+    public virtual string PrettyRow { get; set; }
+}
+
+// Test models - both keys in base class
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelBothKeysInBase : BaseClassWithBothKeys
+{
+    public partial string MyProperty { get; set; }
+}
+
+// Test models - only partition key in base class
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelPartitionKeyInBase : BaseClassWithOnlyPartitionKey
+{
+    public partial string MyProperty { get; set; }
+}
+
+// Test models - only row key in base class
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelRowKeyInBase : BaseClassWithOnlyRowKey
+{
+    public partial string MyProperty { get; set; }
+}
+
+// Test models - no keys in base class
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelNoKeysInBase : BaseClassWithNoKeys
+{
+    public partial string MyProperty { get; set; }
+}
+
+// Test models - both keys in base class with partial override using 'new'
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelBothKeysInBaseWithPartial : BaseClassWithBothKeysPartial
+{
+    public new partial string PrettyPartition { get; set; }
+    public new partial string PrettyRow { get; set; }
+    public partial string MyProperty { get; set; }
+}
+
+// Test models - both keys in base class with virtual override
+[TableSet(PartitionKey = nameof(PrettyPartition), RowKey = nameof(PrettyRow))]
+public partial class ModelBothKeysInBaseWithOverride : BaseClassWithVirtualKeys
+{
+    public override string PrettyPartition { get; set; }
+    public override string PrettyRow { get; set; }
+    public partial string MyProperty { get; set; }
 }

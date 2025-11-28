@@ -69,6 +69,9 @@ internal static class MemberProcessor
             bool isPartial = property.IsPartialDefinition;
             bool isVirtualFromBase = property.IsVirtual && !SymbolEqualityComparer.Default.Equals(property.ContainingType, classSymbol);
             bool generate = (isPartial || isVirtualFromBase) && !prettyMembers.Any(x => x.Name == property.Name);
+            
+            // Check if the property hides a base member (has 'new' modifier)
+            bool isNew = IsPropertyMarkedAsNew(property);
 
             members.Add(new MemberToGenerate(
                 name: property.Name,
@@ -80,6 +83,7 @@ internal static class MemberProcessor
                 withChangeTracking: withChangeTracking,
                 isPartial: isPartial,
                 isOverride: isVirtualFromBase,
+                isNew: isNew,
                 tagBlob: tagBlob
             ));
         }
@@ -113,5 +117,28 @@ internal static class MemberProcessor
 
         properties.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.Ordinal));
         return properties;
+    }
+
+    /// <summary>
+    /// Checks if a property is marked with the 'new' modifier by examining its syntax.
+    /// </summary>
+    /// <param name="property">The property symbol to check.</param>
+    /// <returns>True if the property has the 'new' modifier, false otherwise.</returns>
+    private static bool IsPropertyMarkedAsNew(IPropertySymbol property)
+    {
+        foreach (var syntaxRef in property.DeclaringSyntaxReferences)
+        {
+            if (syntaxRef.GetSyntax() is Microsoft.CodeAnalysis.CSharp.Syntax.PropertyDeclarationSyntax propertySyntax)
+            {
+                foreach (var modifier in propertySyntax.Modifiers)
+                {
+                    if (modifier.IsKind(Microsoft.CodeAnalysis.CSharp.SyntaxKind.NewKeyword))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 }

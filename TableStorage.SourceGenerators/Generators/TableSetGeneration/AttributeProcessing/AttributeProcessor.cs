@@ -53,25 +53,53 @@ internal static class AttributeProcessor
     /// Processes TableSetAttribute arguments to extract partition key, row key, and pretty members.
     /// </summary>
     /// <param name="tablesetAttribute">The TableSetAttribute syntax.</param>
+    /// <param name="classSymbol">The class symbol to check for base class properties.</param>
     /// <returns>Tuple containing partition key proxy, row key proxy, and pretty members.</returns>
     public static (string? PartitionKeyProxy, string? RowKeyProxy, List<PrettyMemberToGenerate> PrettyMembers) ProcessTableSetAttributeArguments(
-        AttributeSyntax tablesetAttribute)
+        AttributeSyntax tablesetAttribute,
+        INamedTypeSymbol classSymbol)
     {
         List<PrettyMemberToGenerate> prettyMembers = new(2);
 
         string? partitionKeyProxy = GetArgumentValue(tablesetAttribute, "PartitionKey");
         if (partitionKeyProxy != null)
         {
-            prettyMembers.Add(new(partitionKeyProxy, "PartitionKey"));
+            bool existsInBase = PropertyExistsInBaseClass(classSymbol, partitionKeyProxy);
+            prettyMembers.Add(new(partitionKeyProxy, "PartitionKey", existsInBase));
         }
 
         string? rowKeyProxy = GetArgumentValue(tablesetAttribute, "RowKey");
         if (rowKeyProxy != null)
         {
-            prettyMembers.Add(new(rowKeyProxy, "RowKey"));
+            bool existsInBase = PropertyExistsInBaseClass(classSymbol, rowKeyProxy);
+            prettyMembers.Add(new(rowKeyProxy, "RowKey", existsInBase));
         }
 
         return (partitionKeyProxy, rowKeyProxy, prettyMembers);
+    }
+
+    /// <summary>
+    /// Checks if a property with the given name exists in any base class (not in the current class).
+    /// </summary>
+    /// <param name="classSymbol">The current class symbol.</param>
+    /// <param name="propertyName">The property name to search for.</param>
+    /// <returns>True if the property exists in a base class, false otherwise.</returns>
+    private static bool PropertyExistsInBaseClass(INamedTypeSymbol classSymbol, string propertyName)
+    {
+        INamedTypeSymbol? currentBase = classSymbol.BaseType;
+        
+        while (currentBase is not null && currentBase.SpecialType is SpecialType.None)
+        {
+            var property = currentBase.GetMembers(propertyName).OfType<IPropertySymbol>().FirstOrDefault();
+            if (property is not null)
+            {
+                return true;
+            }
+            
+            currentBase = currentBase.BaseType;
+        }
+        
+        return false;
     }
 
     /// <summary>
@@ -130,6 +158,7 @@ internal static class AttributeProcessor
                 withChangeTracking: withChangeTracking,
                 isPartial: false, // These are not pre-existing partial properties
                 isOverride: false, // These are not overrides, they are new properties
+                isNew: false, // These are not hiding base members
                 tagBlob: tagBlob
             ));
         }

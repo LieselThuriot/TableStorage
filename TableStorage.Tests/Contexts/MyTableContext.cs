@@ -17,6 +17,14 @@ public partial class MyTableContext
     public BlobSet<Model2> Models2Blob { get; }
     public AppendBlobSet<Model5> Models5Blob { get; }
     public AppendBlobSet<Model5> Models5BlobInJson { get; }
+
+    // Base class property inheritance tests
+    public TableSet<ModelBothKeysInBase> ModelBothKeysInBase { get; set; }
+    public TableSet<ModelPartitionKeyInBase> ModelPartitionKeyInBase { get; set; }
+    public TableSet<ModelRowKeyInBase> ModelRowKeyInBase { get; set; }
+    public TableSet<ModelNoKeysInBase> ModelNoKeysInBase { get; set; }
+    public TableSet<ModelBothKeysInBaseWithPartial> ModelBothKeysInBaseWithPartial { get; set; }
+    public TableSet<ModelBothKeysInBaseWithOverride> ModelBothKeysInBaseWithOverride { get; set; }
 }
 
 [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web,

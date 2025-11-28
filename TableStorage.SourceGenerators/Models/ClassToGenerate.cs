@@ -108,7 +108,7 @@ public readonly struct ClassToGenerate(string name, string @namespace, Equatable
 /// Represents a member (property) to be generated in a class.
 /// Contains all configuration needed for property generation including type information and behavior.
 /// </summary>
-public readonly struct MemberToGenerate(string name, string type, TypeKind typeKind, bool generateProperty, string partitionKeyProxy, string rowKeyProxy, bool withChangeTracking, bool isPartial, bool isOverride, bool tagBlob) : IEquatable<MemberToGenerate>
+public readonly struct MemberToGenerate(string name, string type, TypeKind typeKind, bool generateProperty, string partitionKeyProxy, string rowKeyProxy, bool withChangeTracking, bool isPartial, bool isOverride, bool isNew, bool tagBlob) : IEquatable<MemberToGenerate>
 {
     public readonly string Name = name;
     public readonly string Type = type;
@@ -119,6 +119,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
     public readonly bool WithChangeTracking = generateProperty && withChangeTracking;
     public readonly bool IsPartial = isPartial;
     public readonly bool IsOverride = isOverride;
+    public readonly bool IsNew = isNew;
     public readonly bool TagBlob = tagBlob;
 
     public bool Equals(MemberToGenerate other)
@@ -132,6 +133,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
                WithChangeTracking == other.WithChangeTracking &&
                IsPartial == other.IsPartial &&
                IsOverride == other.IsOverride &&
+               IsNew == other.IsNew &&
                TagBlob == other.TagBlob;
     }
 
@@ -151,6 +153,7 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
         hashCode.Add(WithChangeTracking);
         hashCode.Add(IsPartial);
         hashCode.Add(IsOverride);
+        hashCode.Add(IsNew);
         hashCode.Add(TagBlob);
         return hashCode.ToHashCode();
     }
@@ -160,14 +163,15 @@ public readonly struct MemberToGenerate(string name, string type, TypeKind typeK
 /// Represents a "pretty" member that serves as a proxy for another property.
 /// Used for creating friendly property names that map to underlying table entity properties.
 /// </summary>
-public readonly struct PrettyMemberToGenerate(string name, string proxy) : IEquatable<PrettyMemberToGenerate>
+public readonly struct PrettyMemberToGenerate(string name, string proxy, bool existsInBaseClass = false) : IEquatable<PrettyMemberToGenerate>
 {
     public readonly string Name = name;
     public readonly string Proxy = proxy;
+    public readonly bool ExistsInBaseClass = existsInBaseClass;
 
     public bool Equals(PrettyMemberToGenerate other)
     {
-        return Name == other.Name && Proxy == other.Proxy;
+        return Name == other.Name && Proxy == other.Proxy && ExistsInBaseClass == other.ExistsInBaseClass;
     }
 
     public override bool Equals(object? obj)
@@ -176,6 +180,6 @@ public readonly struct PrettyMemberToGenerate(string name, string proxy) : IEqua
     }
     public override int GetHashCode()
     {
-        return HashCode.Combine(Name, Proxy);
+        return HashCode.Combine(Name, Proxy, ExistsInBaseClass);
     }
 }
