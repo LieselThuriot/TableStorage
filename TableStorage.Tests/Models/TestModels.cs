@@ -212,3 +212,21 @@ public partial class ModelBothKeysInBaseWithOverride : BaseClassWithVirtualKeys
     public override string PrettyRow { get; set; }
     public partial string MyProperty { get; set; }
 }
+
+[TableSet(PartitionKey = nameof(PrettyPartitionA), RowKey = nameof(PrettyRowA))]
+public partial class FluentTestModelA
+{
+    public partial string PrettyPartitionA { get; set; }
+    public partial string PrettyRowA { get; set; }
+    public partial string TypeA { get; set; }
+    public partial int PropertyA { get; set; }
+}
+
+[TableSet(PartitionKey = nameof(PrettyPartitionB), RowKey = nameof(PrettyRowB))]
+public partial class FluentTestModelB
+{
+    public partial string PrettyPartitionB { get; set; }
+    public partial string PrettyRowB { get; set; }
+    public partial string TypeB { get; set; }
+    public partial bool PropertyB { get; set; }
+}

@@ -227,6 +227,350 @@ public class QueryTests(AzuriteFixture azuriteFixture) : AzuriteTestBase(azurite
 
     #endregion
 
+    #region FluentTableEntity Tests
+
+    [Fact]
+    public async Task FluentEntity_AddAndRetrieveModelA_ShouldStoreAndRetrieveCorrectly()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "fluent-test",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "TypeA Model",
+            PropertyA = 42
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+        var retrieved = await Context.FluentModels.FindAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+
+        // Assert
+        Assert.NotNull(retrieved);
+        Assert.Equal("FluentTestModelA", retrieved["$type"]);
+        Assert.Equal("TypeA Model", retrieved["TypeA"]);
+        Assert.Equal(42, retrieved["PropertyA"]);
+    }
+
+    [Fact]
+    public async Task FluentEntity_AddAndRetrieveModelB_ShouldStoreAndRetrieveCorrectly()
+    {
+        // Arrange
+        var modelB = new FluentTestModelB
+        {
+            PrettyPartitionB = "fluent-test",
+            PrettyRowB = Guid.NewGuid().ToString("N"),
+            TypeB = "TypeB Model",
+            PropertyB = true
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelB);
+        var retrieved = await Context.FluentModels.FindAsync(modelB.PrettyPartitionB, modelB.PrettyRowB);
+
+        // Assert
+        Assert.NotNull(retrieved);
+        Assert.Equal("FluentTestModelB", retrieved["$type"]);
+        Assert.Equal("TypeB Model", retrieved["TypeB"]);
+        Assert.True((bool)retrieved["PropertyB"]);
+    }
+
+    [Fact]
+    public async Task FluentEntity_StoreMultipleTypes_ShouldPreserveTypeInformation()
+    {
+        // Arrange
+        string partitionKey = "fluent-partition";
+        string modelAId = Guid.NewGuid().ToString("N");
+        string modelBId = Guid.NewGuid().ToString("N");
+
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = partitionKey,
+            PrettyRowA = modelAId,
+            TypeA = "First Type A",
+            PropertyA = 100
+        };
+
+        var modelB = new FluentTestModelB
+        {
+            PrettyPartitionB = partitionKey,
+            PrettyRowB = modelBId,
+            TypeB = "First Type B",
+            PropertyB = false
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+        await Context.FluentModels.UpsertEntityAsync(modelB);
+
+        var retrievedA = await Context.FluentModels.FindAsync(partitionKey, modelAId);
+        var retrievedB = await Context.FluentModels.FindAsync(partitionKey, modelBId);
+
+        // Assert
+        Assert.NotNull(retrievedA);
+        Assert.NotNull(retrievedB);
+        Assert.Equal("FluentTestModelA", retrievedA["$type"]);
+        Assert.Equal("FluentTestModelB", retrievedB["$type"]);
+    }
+
+    [Fact]
+    public async Task FluentEntity_RetrieveAsModelA_ShouldCastCorrectly()
+    {
+        // Arrange
+        var originalA = new FluentTestModelA
+        {
+            PrettyPartitionA = "fluent-test",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Casting Test A",
+            PropertyA = 777
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(originalA);
+        var retrieved = await Context.FluentModels.FindAsync(originalA.PrettyPartitionA, originalA.PrettyRowA);
+
+        // Cast back to ModelA
+        FluentTestModelA castedA = (FluentTestModelA)retrieved;
+
+        // Assert
+        Assert.NotNull(castedA);
+        Assert.Equal("Casting Test A", castedA.TypeA);
+        Assert.Equal(777, castedA.PropertyA);
+    }
+
+    [Fact]
+    public async Task FluentEntity_UpdateModelA_ShouldPersistChanges()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "fluent-test",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Original Value",
+            PropertyA = 10
+        };
+        
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+
+        // Act - Update the entity
+        var retrieved = await Context.FluentModels.FindAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+        
+        Assert.NotNull(retrieved);
+        retrieved["TypeA"] = "Updated Value";
+        retrieved["PropertyA"] = 20;
+        
+        await Context.FluentModels.UpsertEntityAsync(retrieved);
+
+        var updatedRetrieved = await Context.FluentModels.FindAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+
+        // Assert
+        Assert.NotNull(updatedRetrieved);
+        Assert.Equal("Updated Value", updatedRetrieved["TypeA"]);
+        Assert.Equal(20, updatedRetrieved["PropertyA"]);
+    }
+
+    [Fact]
+    public async Task FluentEntity_ToListAsync_ShouldReturnAllStoredEntities()
+    {
+        // Arrange
+        string partitionKey = "fluent-list-test";
+        var modelA1 = new FluentTestModelA
+        {
+            PrettyPartitionA = partitionKey,
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "List A 1",
+            PropertyA = 1
+        };
+
+        var modelA2 = new FluentTestModelA
+        {
+            PrettyPartitionA = partitionKey,
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "List A 2",
+            PropertyA = 2
+        };
+
+        var modelB = new FluentTestModelB
+        {
+            PrettyPartitionB = partitionKey,
+            PrettyRowB = Guid.NewGuid().ToString("N"),
+            TypeB = "List B 1",
+            PropertyB = true
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelA1);
+        await Context.FluentModels.UpsertEntityAsync(modelA2);
+        await Context.FluentModels.UpsertEntityAsync(modelB);
+
+        var allEntities = await Context.FluentModels.ToListAsync();
+
+        // Assert
+        Assert.True(allEntities.Count >= 3);
+    }
+
+    [Fact]
+    public async Task FluentEntity_FindAsync_WithMultipleIds_ShouldReturnRequestedEntities()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "fluent-find",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Find A",
+            PropertyA = 50
+        };
+
+        var modelB = new FluentTestModelB
+        {
+            PrettyPartitionB = "fluent-find",
+            PrettyRowB = Guid.NewGuid().ToString("N"),
+            TypeB = "Find B",
+            PropertyB = false
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+        await Context.FluentModels.UpsertEntityAsync(modelB);
+
+        var findResults = await Context.FluentModels
+            .FindAsync(
+                ("fluent-find", modelA.PrettyRowA),
+                ("fluent-find", modelB.PrettyRowB)
+            )
+            .ToListAsync();
+
+        // Assert
+        Assert.Equal(2, findResults.Count);
+    }
+
+    [Fact]
+    public async Task FluentEntity_Where_ShouldFilterByPartitionKey()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "partition-a",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Partition A",
+            PropertyA = 11
+        };
+
+        var modelB = new FluentTestModelB
+        {
+            PrettyPartitionB = "partition-b",
+            PrettyRowB = Guid.NewGuid().ToString("N"),
+            TypeB = "Partition B",
+            PropertyB = true
+        };
+
+        // Act
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+        await Context.FluentModels.UpsertEntityAsync(modelB);
+
+        var filterResults = await Context.FluentModels
+            .Where(x => x.PartitionKey == "partition-a")
+            .ToListAsync();
+
+        // Assert
+        Assert.NotEmpty(filterResults);
+        Assert.All(filterResults, x => Assert.Equal("partition-a", x.PartitionKey));
+    }
+
+    [Fact]
+    public async Task FluentEntity_ImplicitCasting_FromModelAToFluentEntity_ShouldWork()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "cast-test",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Implicit Cast Test",
+            PropertyA = 99
+        };
+
+        // Act - Implicit cast
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+        var retrieved = await Context.FluentModels.FindAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+
+        // Assert
+        Assert.NotNull(retrieved);
+        Assert.Equal("Implicit Cast Test", retrieved["TypeA"]);
+        Assert.Equal(99, retrieved["PropertyA"]);
+    }
+
+    [Fact]
+    public async Task FluentEntity_ImplicitCasting_FromFluentEntityToModelA_ShouldWork()
+    {
+        // Arrange
+        var originalA = new FluentTestModelA
+        {
+            PrettyPartitionA = "reverse-cast",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "Reverse Cast Test",
+            PropertyA = 88
+        };
+
+        await Context.FluentModels.UpsertEntityAsync(originalA);
+
+        // Act - Retrieve and implicitly cast back
+        var retrieved = await Context.FluentModels.FindAsync(originalA.PrettyPartitionA, originalA.PrettyRowA);
+        FluentTestModelA castedBack = retrieved;
+
+        // Assert
+        Assert.NotNull(castedBack);
+        Assert.Equal("Reverse Cast Test", castedBack.TypeA);
+        Assert.Equal(88, castedBack.PropertyA);
+    }
+
+    [Fact]
+    public async Task FluentEntity_CountAsync_ShouldReturnCorrectCount()
+    {
+        // Arrange
+        string partitionKey = "count-test";
+        for (int i = 0; i < 3; i++)
+        {
+            var modelA = new FluentTestModelA
+            {
+                PrettyPartitionA = partitionKey,
+                PrettyRowA = Guid.NewGuid().ToString("N"),
+                TypeA = $"Item {i}",
+                PropertyA = i
+            };
+            await Context.FluentModels.UpsertEntityAsync(modelA);
+        }
+
+        // Act
+        int count = await Context.FluentModels
+            .Where(x => x.PartitionKey == partitionKey)
+            .CountAsync();
+
+        // Assert
+        Assert.Equal(3, count);
+    }
+
+    [Fact]
+    public async Task FluentEntity_DeleteEntity_ShouldRemoveFromStorage()
+    {
+        // Arrange
+        var modelA = new FluentTestModelA
+        {
+            PrettyPartitionA = "delete-test",
+            PrettyRowA = Guid.NewGuid().ToString("N"),
+            TypeA = "To Delete",
+            PropertyA = 42
+        };
+        await Context.FluentModels.UpsertEntityAsync(modelA);
+
+        // Act
+        await Context.FluentModels.DeleteEntityAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+        var retrieved = await Context.FluentModels.FindAsync(modelA.PrettyPartitionA, modelA.PrettyRowA);
+        // Assert
+        Assert.Null(retrieved);
+    }
+
+    #endregion
+
     #region Blob Storage Query Tests
 
     [Fact]

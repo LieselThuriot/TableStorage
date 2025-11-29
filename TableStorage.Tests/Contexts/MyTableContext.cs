@@ -25,6 +25,9 @@ public partial class MyTableContext
     public TableSet<ModelNoKeysInBase> ModelNoKeysInBase { get; set; }
     public TableSet<ModelBothKeysInBaseWithPartial> ModelBothKeysInBaseWithPartial { get; set; }
     public TableSet<ModelBothKeysInBaseWithOverride> ModelBothKeysInBaseWithOverride { get; set; }
+
+    // FluentTableEntity tests
+    public TableSet<FluentTableEntity<FluentTestModelA, FluentTestModelB>> FluentModels { get; set; }
 }
 
 [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web,
@@ -34,4 +37,7 @@ public partial class MyTableContext
 [JsonSerializable(typeof(Model2))]
 [JsonSerializable(typeof(Model4))]
 [JsonSerializable(typeof(Model5))]
+[JsonSerializable(typeof(FluentTableEntity<FluentTestModelA, FluentTestModelB>))]
+[JsonSerializable(typeof(FluentTestModelA))]
+[JsonSerializable(typeof(FluentTestModelB))]
 public partial class ModelSerializationContext : JsonSerializerContext;
