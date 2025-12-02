@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using TableStorage.Fluent;
 using TableStorage.Tests.Models;
 
 namespace TableStorage.Tests.Contexts;
@@ -28,6 +29,8 @@ public partial class MyTableContext
 
     // FluentTableEntity tests
     public TableSet<FluentTableEntity<FluentTestModelA, FluentTestModelB>> FluentModels { get; set; }
+    public TableSet<FluentPartitionTableEntity<FluentTestModelA, FluentTestModelB>> FluentPartitionModels { get; set; }
+    public TableSet<FluentRowTypeTableEntity<FluentTestModelA, FluentTestModelB>> FluentRowTypeModels { get; set; }
 }
 
 [JsonSourceGenerationOptions(System.Text.Json.JsonSerializerDefaults.Web,
@@ -38,6 +41,8 @@ public partial class MyTableContext
 [JsonSerializable(typeof(Model4))]
 [JsonSerializable(typeof(Model5))]
 [JsonSerializable(typeof(FluentTableEntity<FluentTestModelA, FluentTestModelB>))]
+[JsonSerializable(typeof(FluentPartitionTableEntity<FluentTestModelA, FluentTestModelB>))]
+[JsonSerializable(typeof(FluentRowTypeTableEntity<FluentTestModelA, FluentTestModelB>))]
 [JsonSerializable(typeof(FluentTestModelA))]
 [JsonSerializable(typeof(FluentTestModelB))]
 public partial class ModelSerializationContext : JsonSerializerContext;

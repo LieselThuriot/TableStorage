@@ -18,6 +18,10 @@
 			<PackagePath>\</PackagePath>
 		</None>
 		<None Include="TableStorage.props" Pack="true" PackagePath="build\TableStorage.props" />
+		<None Update="Fluent\FluentTableEntity.tt">
+			<Generator>TextTemplatingFileGenerator</Generator>
+			<LastGenOutput>FluentTableEntity.cs</LastGenOutput>
+		</None>
 	</ItemGroup>
 
 	<ItemGroup>
@@ -48,5 +52,17 @@
 		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[^,$)" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Data.Tables" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Update="Fluent\FluentTableEntity.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>FluentTableEntity.tt</DependentUpon>
+	  </Compile>
 	</ItemGroup>
 </Project>
