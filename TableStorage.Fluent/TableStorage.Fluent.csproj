@@ -7,8 +7,26 @@
 		<VersionPrefix>$(MajorMinorVersion).0</VersionPrefix>
 	</PropertyGroup>
 
+
 	<ItemGroup>
-		<None Include="..\README.md">
+		<PackageReference Include="Azure.Data.Tables" Version="[12.8.3,)" />
+		<ProjectReference Include="..\TableStorage\TableStorage.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Compile Update="FluentTableEntity.cs">
+			<DependentUpon>FluentTableEntity.tt</DependentUpon>
+			<DesignTime>True</DesignTime>
+			<AutoGen>True</AutoGen>
+		</Compile>
+		<None Update="FluentTableEntity.tt">
+			<LastGenOutput>FluentTableEntity.cs</LastGenOutput>
+			<Generator>TextTemplatingFileGenerator</Generator>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="README.md">
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
@@ -18,19 +36,8 @@
 			<PackagePath>\</PackagePath>
 		</None>
 		<None Include="TableStorage.props" Pack="true" PackagePath="build\TableStorage.props" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<PackageReference Include="Azure.Data.Tables" Version="[12.8.3,)" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="[8.0.0,)" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="[3.1.0, )" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="[8.0.0, )" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<InternalsVisibleTo Include="TableStorage.RuntimeCompilations" />
-		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" PackageVersion="[^,$)" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Data.Tables" />
 	</ItemGroup>
+
 </Project>

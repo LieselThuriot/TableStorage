@@ -286,8 +286,8 @@ internal static class DataExtractor
 
                 if (typeArg.Value is INamedTypeSymbol memberType && nameArg.Value is string memberName)
                 {
-                    bool generateProperty = true; // Could be enhanced with more logic
-                    bool isPartial = false; // Could be enhanced with more logic
+                    const bool generateProperty = true; // Could be enhanced with more logic
+                    const bool isPartial = false; // Could be enhanced with more logic
                     bool tagBlob = GetAttributePropertyFast<bool>(propertyAttribute, s_tagProperty);
 
                     var memberInfo = new TableSetMemberInfo(

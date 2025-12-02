@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.2.32526.322
+# Visual Studio Version 18
+VisualStudioVersion = 18.0.11217.181 d18.0
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TableStorage", "TableStorage\TableStorage.csproj", "{6B5D166A-BCE5-4F77-A8C4-E90D6FD585EE}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -32,6 +32,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TableStorage.Blobs.RuntimeCompilations", "TableStorage.Blobs.RuntimeCompilations\TableStorage.Blobs.RuntimeCompilations.csproj", "{B217E6B5-3DD1-40C9-A1AD-935A58FA0F72}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TableStorage.Tests", "TableStorage.Tests\TableStorage.Tests.csproj", "{39B3ADF9-260E-424D-8F60-3125E7555FB0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TableStorage.Fluent", "TableStorage.Fluent\TableStorage.Fluent.csproj", "{450DC416-96A7-4A49-AF07-1A2E8768335F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -127,6 +129,18 @@ Global
 		{39B3ADF9-260E-424D-8F60-3125E7555FB0}.Release|x64.Build.0 = Release|Any CPU
 		{39B3ADF9-260E-424D-8F60-3125E7555FB0}.Release|x86.ActiveCfg = Release|Any CPU
 		{39B3ADF9-260E-424D-8F60-3125E7555FB0}.Release|x86.Build.0 = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|x64.Build.0 = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Debug|x86.Build.0 = Debug|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|x64.ActiveCfg = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|x64.Build.0 = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|x86.ActiveCfg = Release|Any CPU
+		{450DC416-96A7-4A49-AF07-1A2E8768335F}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

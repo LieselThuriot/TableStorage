@@ -15,7 +15,7 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithPartitionKeyProxy_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
+        const string partitionKey = "test-partition";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,
@@ -46,7 +46,7 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithPartitionKeyProxyAndNotEquals_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
+        const string partitionKey = "test-partition";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,
@@ -77,7 +77,7 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithPartitionKeyProxyAndAdditionalFilters_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
+        const string partitionKey = "test-partition";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,
@@ -121,7 +121,7 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithRowKeyProxy_ShouldFilterCorrectly()
     {
         // Arrange
-        string rowKey = "test-row-key";
+        const string rowKey = "test-row-key";
         await Context.Models2.UpsertEntityAsync(new()
         {
             PartitionKey = "root",
@@ -152,7 +152,7 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithRowKeyProxyAndNotEquals_ShouldFilterCorrectly()
     {
         // Arrange
-        string rowKey = "test-row-key";
+        const string rowKey = "test-row-key";
         await Context.Models2.UpsertEntityAsync(new()
         {
             PartitionKey = "root",
@@ -227,8 +227,8 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithBothProxies_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
-        string rowKey = "test-row-key";
+        const string partitionKey = "test-partition";
+        const string rowKey = "test-row-key";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,
@@ -310,8 +310,8 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithBothProxiesUsingSeparateConditions_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
-        string rowKey = "test-row-key";
+        const string partitionKey = "test-partition";
+        const string rowKey = "test-row-key";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,
@@ -415,8 +415,8 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithProxyAndComplexOrConditions_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey1 = "test-partition-1";
-        string partitionKey2 = "test-partition-2";
+        const string partitionKey1 = "test-partition-1";
+        const string partitionKey2 = "test-partition-2";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey1,
@@ -455,8 +455,8 @@ public class QueryAsyncProxyTests(AzuriteFixture azuriteFixture) : AzuriteTestBa
     public async Task QueryAsync_WithProxyAndGreaterThanComparison_ShouldFilterCorrectly()
     {
         // Arrange
-        string partitionKey = "test-partition";
-        string rowKey = "row-005";
+        const string partitionKey = "test-partition";
+        const string rowKey = "row-005";
         await Context.Models1.UpsertEntityAsync(new()
         {
             PrettyName = partitionKey,

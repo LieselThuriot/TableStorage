@@ -11,8 +11,8 @@ public static class IBlobAsyncEnumerableExtensions
     {
         return blobset switch
         {
-            BlobSetQueryHelper<T, AppendBlobClient> append => BlobSetQueryHelperExtensions.BatchUpdateAsync(append, update, token),
-            BlobSetQueryHelper<T, BlobClient> block => BlobSetQueryHelperExtensions.BatchUpdateAsync(block, update, token),
+            BlobSetQueryHelper<T, AppendBlobClient> append => append.BatchUpdateAsync(update, token),
+            BlobSetQueryHelper<T, BlobClient> block => block.BatchUpdateAsync(update, token),
             _ => throw new NotSupportedException("blobset type does not support batch updates.")
         };
     }

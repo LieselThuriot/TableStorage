@@ -348,5 +348,9 @@ MigrationBackup/
 
 # Ionide (cross platform F# VS Code tools) working folder
 .ionide/
+
+# Azurite storage emulator files
 /azurite/
-/TableStorage/Fluent/FluentTableEntity.cs
+
+# Generated FluentTableEntity file
+/TableStorage.Fluent/FluentTableEntity.cs

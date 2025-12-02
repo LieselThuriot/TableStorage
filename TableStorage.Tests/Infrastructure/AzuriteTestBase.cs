@@ -53,7 +53,7 @@ public abstract class AzuriteTestBase(AzuriteFixture azuriteFixture) : IAsyncLif
     protected MyTableContext Context { get; private set; } = null!;
     private ServiceProvider? _serviceProvider;
 
-    public virtual async Task InitializeAsync()
+    public virtual Task InitializeAsync()
     {
         var services = new ServiceCollection();
 
@@ -73,7 +73,7 @@ public abstract class AzuriteTestBase(AzuriteFixture azuriteFixture) : IAsyncLif
         Context = _serviceProvider.GetRequiredService<MyTableContext>();
 
         // Clean up any existing data before each test
-        await CleanupAllTables();
+        return CleanupAllTables();
     }
 
     public virtual async Task DisposeAsync()
