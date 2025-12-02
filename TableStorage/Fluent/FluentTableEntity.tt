@@ -14,8 +14,6 @@ using System.ComponentModel;
 namespace TableStorage.Fluent;
 
 #nullable disable
-#pragma warning disable IDE2000
-
 <# for (int genericCount = minGenerics; genericCount <= maxGenerics; genericCount++) { 
     GenerateClass("FluentTableEntity", "$type", true, genericCount);
     GenerateClass("FluentPartitionTableEntity", "PartitionKey", false, genericCount);
@@ -98,11 +96,48 @@ namespace TableStorage.Fluent;
         var typeDiscriminatorCases = new List<string>();
         for (int i = 1; i < genericCount; i++)
         {
-            typeDiscriminatorCases.Add($"else if (type == typeof(T{i + 1}).Name)\n                {{\n                    _backingType = FluentBackingType.{GetOrdinalName(i + 1)};\n                    Create<T{i + 1}>();\n                }}");
+            typeDiscriminatorCases.Add($"else if (type == typeof(T{i + 1}).Name)\n            {{\n                _backingType = FluentBackingType.{GetOrdinalName(i + 1)};\n                Create<T{i + 1}>();\n            }}");
         }
         
-        var typeDiscriminatorList = string.Join("\n                ", typeDiscriminatorCases);
+        var typeDiscriminatorList = string.Join("\n            ", typeDiscriminatorCases);
+
+        // Create different creation logic based on the discriminator
+        string partitionKeyInit = discriminator is "PartitionKey" ? "PartitionKey = value" : "PartitionKey = _tempPartitionKey";
+        string rowKeyInit = discriminator is "RowKey" ? "RowKey = value" : "RowKey = _tempRowKey";
+        string typeInit = discriminator is "PartitionKey" or "RowKey" ? "" : "?.ToString()";
+
+        var creationLogic = $@"            string type = value{typeInit};
+
+            if (type == typeof(T1).Name)
+            {{
+                _backingType = FluentBackingType.First;
+                Create<T1>();
+            }}
+            {typeDiscriminatorList}
+            else
+            {{
+                throw new InvalidOperationException($""Invalid type specified: {{value}}"");
+            }}
+
+            void Create<T>() where T : class, IDictionary<string, object>, ITableEntity, new()
+            {{
+                if (_backingDictionary is not null)
+                {{
+                    throw new InvalidOperationException(""FluentTableEntity is already initialized."");
+                }}
+
+                _backingDictionary = new T()
+                {{
+                    {partitionKeyInit},
+                    {rowKeyInit},
+                    Timestamp = _tempTimestamp.GetValueOrDefault(),
+                    ETag = _tempETag.GetValueOrDefault()
+                }};
+            }}";
+
+        var creationLogicIndented = "    " + creationLogic.Replace("\n", "\n    ");
 #>
+
 public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string, object>, ITableEntity
     <#= constraintList #>
 {
@@ -114,6 +149,10 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
 
     private FluentBackingType _backingType;
     private IDictionary<string, object> _backingDictionary;
+    private string _tempPartitionKey;
+    private string _tempRowKey;
+    private DateTimeOffset? _tempTimestamp;
+    private ETag? _tempETag;
 
     /// <summary>
     /// This should only be used by the Table SDK when deserializing entities.
@@ -122,7 +161,6 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
     public <#= className #>()
     {
         _backingType = FluentBackingType.NotInitialized;
-        _backingDictionary = new Dictionary<string, object>();
     }
 
 <#= operatorList #>
@@ -161,40 +199,66 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
 
     public string PartitionKey
     {
-<#+ if (discriminator == "PartitionKey") { #>
+<#+ if (discriminator is "PartitionKey") { #>
         get => GetDiscriminatorType();
-        set => this[Discriminator] = value;
+        set
+        {
+<#= creationLogic #>
+        }
 <#+ } else { #>
         get
         {
-            if (_backingDictionary.TryGetValue("PartitionKey", out object result))
+            if (_backingDictionary is null)
             {
-                return result?.ToString();
+                return _tempPartitionKey;
             }
 
-            return null;
+            return ((ITableEntity)_backingDictionary).PartitionKey;
         }
 
-        set => _backingDictionary["PartitionKey"] = value;
+        set
+        {
+            if (_backingDictionary is null)
+            {
+                _tempPartitionKey = value;
+            }
+            else
+            {
+                ((ITableEntity)_backingDictionary).PartitionKey = value;
+            }
+        }
 <#+ } #>
     }
 
     public string RowKey
     {
-<#+ if (discriminator == "RowKey") { #>
+<#+ if (discriminator is "RowKey") { #>
         get => GetDiscriminatorType();
-        set => this[Discriminator] = value;
+        set
+        {
+<#= creationLogic #>
+        }
 <#+ } else { #>
         get
         {
-            if (_backingDictionary.TryGetValue("RowKey", out object result))
+            if (_backingDictionary is null)
             {
-                return result?.ToString();
+                return _tempRowKey;
             }
 
-            return null;
+            return ((ITableEntity)_backingDictionary).RowKey;
         }
-        set => _backingDictionary["RowKey"] = value;
+        set
+        {
+            if (_backingDictionary is null)
+            {
+                _tempRowKey = value;
+            }
+            else
+            {
+                ((ITableEntity)_backingDictionary).RowKey = value;
+            }
+        }
 <#+ } #>
     }
 
@@ -202,37 +266,49 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
     {
         get
         {
-            if (_backingDictionary.TryGetValue("Timestamp", out object result) && result is DateTimeOffset dateTimeOffset)
+            if (_backingDictionary is null)
             {
-                return dateTimeOffset;
+                return _tempTimestamp;
             }
 
-            return null;
+            return ((ITableEntity)_backingDictionary).Timestamp;
         }
-        set => _backingDictionary["Timestamp"] = value;
+        set
+        {
+            if (_backingDictionary is null)
+            {
+                _tempTimestamp = value;
+            }
+            else
+            {
+                ((ITableEntity)_backingDictionary).Timestamp = value;
+            }
+        }
     }
 
     public ETag ETag
     {
         get
         {
-            if (_backingDictionary.TryGetValue("odata.etag", out object result))
+            if (_backingDictionary is null)
             {
-                if (result is ETag eTag)
-                {
-                    return eTag;
-                }
-
-                if (result?.ToString() is string eTagString)
-                {
-                    return new(eTagString);
-                }
+                return _tempETag ?? default;
             }
 
-            return default;
+            return ((ITableEntity)_backingDictionary).ETag;
         }
 
-        set => _backingDictionary["odata.etag"] = value;
+        set
+        {
+            if (_backingDictionary is null)
+            {
+                _tempETag = value;
+            }
+            else
+            {
+                ((ITableEntity)_backingDictionary).ETag = value;
+            }
+        }
     }
 
     public object this[string key]
@@ -242,6 +318,18 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
             if (key is Discriminator)
             {
                 return GetDiscriminatorType();
+            }
+
+            if (_backingDictionary is null)
+            {
+                return key switch
+                {
+                    "PartitionKey" => _tempPartitionKey,
+                    "RowKey" => _tempRowKey,
+                    "Timestamp" => _tempTimestamp,
+                    "odata.etag" => _tempETag,
+                    _ => null
+                };
             }
 
             if (_backingDictionary.TryGetValue(key, out object result))
@@ -254,40 +342,51 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
 
         set
         {
+<#+ if (discriminator is "PartitionKey" or "RowKey") { #>
             if (key is Discriminator)
             {
-                string type = value?.ToString();
-
-                if (type == typeof(T1).Name)
-                {
-                    _backingType = FluentBackingType.First;
-                    Create<T1>();
-                }
-                <#= typeDiscriminatorList #>
-                else
-                {
-                    throw new InvalidOperationException($"Invalid type specified: {value}");
-                }
-
-<#+ if (!isVirtualDiscriminator) { #>
-                _backingDictionary[key] = value;
-
-<#+ } #>
-                void Create<T>() where T : class, IDictionary<string, object>, ITableEntity, new()
-                {
-                    IDictionary<string, object> original = _backingDictionary;
-                    _backingDictionary = new T();
-
-                    foreach (KeyValuePair<string, object> kvp in original)
-                    {
-                        _backingDictionary[kvp.Key] = kvp.Value;
-                    }
-                }
+                <#= discriminator #> = value?.ToString();
+                return;
             }
-            else
+<#+ } else { #>
+            if (key is Discriminator)
             {
-                _backingDictionary[key] = value;
+<#= creationLogicIndented #>
+
+                return;
             }
+<#+ } #>
+
+            if (_backingDictionary is null)
+            {
+                switch (key)
+                {
+                    case "PartitionKey":
+                        _tempPartitionKey = value?.ToString();
+                        return;
+                    case "RowKey":
+                        _tempRowKey = value?.ToString();
+                        return;
+                    case "Timestamp":
+                        if (value is DateTimeOffset dto)
+                        {
+                            _tempTimestamp = dto;
+                        }
+
+                        return;
+                    case "odata.etag":
+                        if (value is ETag et)
+                        {
+                            _tempETag = et;
+                        }
+                        
+                        return;
+                }
+                
+                throw new InvalidOperationException($"FluentTableEntity is not initialized. Discriminator property must be set before setting '{key}'.");
+            }
+
+            _backingDictionary[key] = value;
         }
     }
 
@@ -308,12 +407,12 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
     public bool IsReadOnly => false;
 
     public void Add(string key, object value) => _backingDictionary.Add(key, value);
-    public bool ContainsKey(string key) => key == Discriminator || _backingDictionary.ContainsKey(key);
+    public bool ContainsKey(string key) => key is Discriminator || _backingDictionary.ContainsKey(key);
     public bool Remove(string key) => _backingDictionary.Remove(key);
 
     public bool TryGetValue(string key, out object value)
     {
-        if (key == Discriminator)
+        if (key is Discriminator)
         {
             value = GetDiscriminatorType();
             return true;
@@ -327,7 +426,7 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
 
     public bool Contains(KeyValuePair<string, object> item)
     {
-        if (item.Key == Discriminator)
+        if (item.Key is Discriminator)
         {
             return Equals(item.Value, GetDiscriminatorType());
         }
@@ -378,7 +477,7 @@ public sealed class <#= className #><<#= typeParamList #>> : IDictionary<string,
 
     public bool TryGetValue(string key, out object value)
     {
-        if (key == Discriminator)
+        if (key is Discriminator)
         {
             value = GetDiscriminatorType();
             return true;
