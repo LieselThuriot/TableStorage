@@ -10,6 +10,7 @@
 	
 	<ItemGroup>
 		<InternalsVisibleTo Include="TableStorage.Fluent.RuntimeCompilations" />
+		<InternalsVisibleTo Include="TableStorage.Tests" />
 		<None Update="README.md">
 		  <Pack>True</Pack>
 		  <PackagePath>\</PackagePath>

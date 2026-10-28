@@ -37,42 +37,37 @@ internal sealed class BlobTagQueryVisitor<T>(ModelInfo modelInfo, IReadOnlyColle
 
     protected override Expression VisitMember(MemberExpression node)
     {
-        string name = node.Member.Name;
-        if (name == _partitionKeyProxy || name is nameof(IBlobEntity.PartitionKey))
+        if (node.Expression is ParameterExpression or UnaryExpression { NodeType: ExpressionType.Convert })
         {
-            name = "partition";
-        }
-        else if (name == _rowKeyProxy || name is nameof(IBlobEntity.RowKey))
-        {
-            name = "row";
-        }
-
-        if (_tags.Contains(name))
-        {
-            var expression = Visit(node.Expression);
-
-            if (expression.NodeType is ExpressionType.Convert && expression is UnaryExpression unaryExpression)
+            string name = node.Member.Name;
+            if (name == _partitionKeyProxy || name is nameof(IBlobEntity.PartitionKey))
             {
-                expression = unaryExpression.Operand;
+                name = "partition";
+            }
+            else if (name == _rowKeyProxy || name is nameof(IBlobEntity.RowKey))
+            {
+                name = "row";
             }
 
-            return Expression.Call(expression, BlobTagAccessor.MethodInfo, Expression.Constant(name));
+            if (_tags.Contains(name))
+            {
+                var expression = Visit(node.Expression);
+
+                if (expression.NodeType is ExpressionType.Convert && expression is UnaryExpression unaryExpression)
+                {
+                    expression = unaryExpression.Operand;
+                }
+
+                return Expression.Call(expression, BlobTagAccessor.MethodInfo, Expression.Constant(name));
+            }
+
+            return node;
         }
 
-        if (node.Expression is ConstantExpression constant)
+        if (node.Expression is null or ConstantExpression or MemberExpression &&
+            ExpressionEvaluator.TryEvaluateMember(node, out ConstantExpression constant))
         {
-            object container = constant.Value;
-            MemberInfo memberInfo = node.Member;
-
-            if (memberInfo.MemberType is MemberTypes.Field)
-            {
-                return Expression.Constant(((FieldInfo)memberInfo).GetValue(container));
-            }
-
-            if (memberInfo.MemberType is MemberTypes.Property)
-            {
-                return Expression.Constant(((PropertyInfo)memberInfo).GetValue(container, null));
-            }
+            return constant;
         }
 
         return node;

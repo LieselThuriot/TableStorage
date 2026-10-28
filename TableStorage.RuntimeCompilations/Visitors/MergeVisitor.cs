@@ -1,6 +1,5 @@
 ﻿using FastExpressionCompiler;
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace TableStorage.Visitors;
 
@@ -43,27 +42,14 @@ internal sealed class MergeVisitor(ModelInfo? modelInfo, Func<Type, ModelInfo> g
 
     protected override Expression VisitMember(MemberExpression memberExpression)
     {
-        Expression expression = Visit(memberExpression.Expression);
+        Expression? expression = Visit(memberExpression.Expression);
 
-        if (expression is ConstantExpression constantExpression)
+        if (ExpressionEvaluator.TryEvaluateMember(memberExpression, expression, out ConstantExpression constantExpression))
         {
-            object container = constantExpression.Value;
-            MemberInfo member = memberExpression.Member;
-
-            if (member.MemberType is MemberTypes.Field)
-            {
-                object value = ((FieldInfo)member).GetValue(container);
-                return Expression.Constant(value);
-            }
-
-            if (member.MemberType is MemberTypes.Property)
-            {
-                object value = ((PropertyInfo)member).GetValue(container, null);
-                return Expression.Constant(value);
-            }
+            return constantExpression;
         }
 
-        return base.VisitMember(memberExpression);
+        return memberExpression.Update(expression);
     }
 
     protected override Expression VisitMethodCall(MethodCallExpression node)
@@ -124,7 +110,7 @@ internal sealed class MergeVisitor(ModelInfo? modelInfo, Func<Type, ModelInfo> g
             _members.Add(name);
             object value = memberExpression.Value;
 
-            if (memberExpression.Type.IsEnum || (Nullable.GetUnderlyingType(memberExpression.Type)?.IsEnum == true))
+            if (value is not null && (memberExpression.Type.IsEnum || (Nullable.GetUnderlyingType(memberExpression.Type)?.IsEnum == true)))
             {
                 value = (int)value;
             }

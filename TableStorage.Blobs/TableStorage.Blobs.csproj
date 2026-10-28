@@ -33,6 +33,7 @@
 
 	<ItemGroup>
 		<InternalsVisibleTo Include="TableStorage.Blobs.RuntimeCompilations" />
+		<InternalsVisibleTo Include="TableStorage.Tests" />
 		<Using Include="Azure" />
 		<Using Include="Azure.Storage.Blobs" />
 		<Using Include="System.Text.Json" />

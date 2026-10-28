@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using System.Reflection;
 
 namespace TableStorage.Visitors;
 
@@ -57,23 +56,19 @@ internal sealed class BlobQueryVisitor(ModelInfo modelInfo, IEnumerable<string> 
 
     protected override Expression VisitMember(MemberExpression node)
     {
-        if (node.Expression is ConstantExpression constant)
+        if (node.Expression is ParameterExpression)
         {
-            object container = constant.Value;
-            MemberInfo memberInfo = node.Member;
-
-            if (memberInfo.MemberType is MemberTypes.Field)
-            {
-                return Expression.Constant(((FieldInfo)memberInfo).GetValue(container));
-            }
-
-            if (memberInfo.MemberType is MemberTypes.Property)
-            {
-                return Expression.Constant(((PropertyInfo)memberInfo).GetValue(container, null));
-            }
+            return node;
         }
 
-        return base.VisitMember(node);
+        Expression? instance = Visit(node.Expression);
+
+        if (ExpressionEvaluator.TryEvaluateMember(node, instance, out ConstantExpression constant))
+        {
+            return constant;
+        }
+
+        return node.Update(instance);
     }
 
     protected override Expression VisitInvocation(InvocationExpression node)
@@ -133,7 +128,7 @@ internal sealed class BlobQueryVisitor(ModelInfo modelInfo, IEnumerable<string> 
 
     private bool TryGetFilterFor(Expression left, Expression right, ExpressionType type, out string? filter)
     {
-        if (left is MemberExpression member && member.Expression.NodeType is ExpressionType.Parameter or ExpressionType.Convert)
+        if (left is MemberExpression { Expression: ParameterExpression or UnaryExpression { NodeType: ExpressionType.Convert } } member)
         {
             if (member.Member.Name == _partitionKeyName || member.Member.Name is nameof(IBlobEntity.PartitionKey))
             {
@@ -184,24 +179,9 @@ internal sealed class BlobQueryVisitor(ModelInfo modelInfo, IEnumerable<string> 
 
     private object? GetValue(Expression node)
     {
-        if (node is ConstantExpression constant)
+        if (ExpressionEvaluator.TryGetValue(node, out object? value))
         {
-            return constant.Value;
-        }
-        else if (node is MemberExpression member && member.Expression is ConstantExpression constant2)
-        {
-            object container = constant2.Value;
-            MemberInfo memberInfo = member.Member;
-
-            if (memberInfo.MemberType is MemberTypes.Field)
-            {
-                return ((FieldInfo)memberInfo).GetValue(container);
-            }
-
-            if (memberInfo.MemberType is MemberTypes.Property)
-            {
-                return ((PropertyInfo)memberInfo).GetValue(container, null);
-            }
+            return value;
         }
 
         _error = true;

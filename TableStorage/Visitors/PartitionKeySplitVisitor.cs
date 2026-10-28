@@ -1,5 +1,4 @@
 using System.Linq.Expressions;
-using System.Reflection;
 
 namespace TableStorage.Visitors;
 
@@ -335,33 +334,8 @@ internal static class PartitionKeySplitVisitor
 
     private static string? TryGetConstantStringValue(Expression expression)
     {
-        // Direct constant: "value"
-        if (expression is ConstantExpression { Value: string value })
-        {
-            return value;
-        }
-
-        // Closure capture: closure.field or closure.property
-        if (expression is MemberExpression { Expression: ConstantExpression container } member)
-        {
-            object? containerValue = container.Value;
-            if (containerValue is null)
-            {
-                return null;
-            }
-
-            if (member.Member is FieldInfo field)
-            {
-                return field.GetValue(containerValue) as string;
-            }
-
-            if (member.Member is PropertyInfo property)
-            {
-                return property.GetValue(containerValue) as string;
-            }
-        }
-
-        return null;
+        // Direct constant, closure capture, static member or a chain of those
+        return ExpressionEvaluator.TryGetValue(expression, out object? value) ? value as string : null;
     }
 
     private static void FlattenOr(Expression expression, List<Expression> result)

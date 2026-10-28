@@ -1,5 +1,4 @@
 ﻿using System.Linq.Expressions;
-using System.Reflection;
 
 namespace TableStorage.Visitors;
 
@@ -11,40 +10,33 @@ internal sealed class WhereVisitor(ModelInfo modelInfo) : ExpressionVisitor
 
     protected override Expression VisitMember(MemberExpression node)
     {
-        if (node.Expression.NodeType is ExpressionType.Parameter)
+        if (node.Expression is ParameterExpression parameter)
         {
-            if (node.Expression.Type == _entityType)
+            if (parameter.Type == _entityType)
             {
                 string name = node.Member.Name;
 
                 if (name == _partitionKeyProxy && name is not nameof(ITableEntity.PartitionKey))
                 {
-                    node = Expression.Property(Expression.Convert(node.Expression, typeof(ITableEntity)), nameof(ITableEntity.PartitionKey));
+                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), nameof(ITableEntity.PartitionKey));
                 }
-                else if (name == _rowKeyProxy && name is not nameof(ITableEntity.RowKey))
+
+                if (name == _rowKeyProxy && name is not nameof(ITableEntity.RowKey))
                 {
-                    node = Expression.Property(Expression.Convert(node.Expression, typeof(ITableEntity)), nameof(ITableEntity.RowKey));
+                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), nameof(ITableEntity.RowKey));
                 }
             }
+
+            return node;
         }
-        else if (node.Expression.NodeType is ExpressionType.Constant)
+
+        Expression? instance = Visit(node.Expression);
+
+        if (ExpressionEvaluator.TryEvaluateMember(node, instance, out ConstantExpression constant))
         {
-            object container = ((ConstantExpression)node.Expression).Value;
-            MemberInfo memberInfo = node.Member;
-
-            if (memberInfo.MemberType is MemberTypes.Field)
-            {
-                object value = ((FieldInfo)memberInfo).GetValue(container);
-                return Expression.Constant(value);
-            }
-
-            if (memberInfo.MemberType is MemberTypes.Property)
-            {
-                object value = ((PropertyInfo)memberInfo).GetValue(container, null);
-                return Expression.Constant(value);
-            }
+            return constant;
         }
 
-        return base.VisitMember(node);
+        return node.Update(instance);
     }
 }
