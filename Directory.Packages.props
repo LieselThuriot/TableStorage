@@ -1,0 +1,39 @@
+<Project>
+	<PropertyGroup>
+		<ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+	</PropertyGroup>
+
+	<!--
+		Library dependencies: these are minimum versions, consumers are free to use anything higher.
+		Only raise them when a newer API or a security fix is required.
+	-->
+	<ItemGroup>
+		<PackageVersion Include="Azure.Data.Tables" Version="12.11.0" />
+		<PackageVersion Include="Azure.Storage.Blobs" Version="12.13.0" />
+		<PackageVersion Include="FastExpressionCompiler" Version="5.4.1" />
+		<PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+		<PackageVersion Include="System.Text.Json" Version="8.0.5" />
+	</ItemGroup>
+
+	<!-- Build tooling and analyzers -->
+	<ItemGroup>
+		<PackageVersion Include="AsyncFixer" Version="2.1.0" />
+		<PackageVersion Include="Microsoft.CodeAnalysis.Analyzers" Version="5.9.0" />
+		<PackageVersion Include="Microsoft.CodeAnalysis.CSharp" Version="5.9.0" />
+		<PackageVersion Include="Microsoft.SourceLink.GitHub" Version="10.0.400" />
+		<PackageVersion Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.7.23" />
+		<PackageVersion Include="Roslynator.Analyzers" Version="4.16.1" />
+		<PackageVersion Include="Roslynator.Formatting.Analyzers" Version="4.16.1" />
+	</ItemGroup>
+
+	<!-- Test dependencies -->
+	<ItemGroup>
+		<PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.11" />
+		<PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+		<PackageVersion Include="protobuf-net" Version="3.3.21" />
+		<PackageVersion Include="Testcontainers.Azurite" Version="4.14.0" />
+		<PackageVersion Include="xunit.runner.visualstudio" Version="4.0.0" />
+		<PackageVersion Include="xunit.v3" Version="4.0.0" />
+	</ItemGroup>
+</Project>
