@@ -10,10 +10,15 @@
 	<ItemGroup>
 		<PackageVersion Include="Azure.Data.Tables" Version="12.11.0" />
 		<PackageVersion Include="Azure.Storage.Blobs" Version="12.13.0" />
-		<PackageVersion Include="FastExpressionCompiler" Version="5.4.1" />
 		<PackageVersion Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
 		<PackageVersion Include="System.Text.Json" Version="8.0.5" />
+	</ItemGroup>
+
+	<!-- FastExpressionCompiler 6 dropped netstandard2.0 -->
+	<ItemGroup>
+		<PackageVersion Include="FastExpressionCompiler" Version="5.4.1" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
+		<PackageVersion Include="FastExpressionCompiler" Version="6.0.0" Condition="'$(TargetFramework)' != 'netstandard2.0'" />
 	</ItemGroup>
 
 	<!-- Build tooling and analyzers -->

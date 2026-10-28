@@ -181,7 +181,7 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
             if (tagValue is not null)
             {
-                tags[tag] = tagValue.ToString();
+                tags[tag] = tagValue.ToString()!;
             }
         }
 

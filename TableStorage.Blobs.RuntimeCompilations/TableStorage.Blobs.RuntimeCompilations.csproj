@@ -9,11 +9,11 @@
 	</PropertyGroup>
 	
 	<ItemGroup>
-		<None Update="README.md">
+		<None Include="README.md">
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
-		<None Update="TableStorage.png">
+		<None Include="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>

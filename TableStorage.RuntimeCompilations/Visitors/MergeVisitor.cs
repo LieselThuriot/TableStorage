@@ -63,7 +63,7 @@ internal sealed class MergeVisitor(ModelInfo? modelInfo, Func<Type, ModelInfo> g
 
             if (!visitor.UsesParameter)
             {
-                object value = Expression.Lambda(call, visitor.Parameters).CompileFast().DynamicInvoke();
+                object? value = Expression.Lambda(call, visitor.Parameters).CompileFast().DynamicInvoke();
                 return Expression.Constant(value);
             }
         }
@@ -108,7 +108,7 @@ internal sealed class MergeVisitor(ModelInfo? modelInfo, Func<Type, ModelInfo> g
         if (node.Expression is ConstantExpression memberExpression)
         {
             _members.Add(name);
-            object value = memberExpression.Value;
+            object? value = memberExpression.Value;
 
             if (value is not null && (memberExpression.Type.IsEnum || (Nullable.GetUnderlyingType(memberExpression.Type)?.IsEnum == true)))
             {

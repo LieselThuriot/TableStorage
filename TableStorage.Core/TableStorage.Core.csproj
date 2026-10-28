@@ -8,18 +8,18 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<None Update="README.md">
+		<None Include="README.md">
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
 		
-		<None Update="TableStorage.png">
+		<None Include="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
 
-		<None Include="$(SolutionDir)\TableStorage.SourceGenerators\bin\$(Configuration)\$(TargetFramework)\TableStorage.SourceGenerators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="$(MSBuildThisFileDirectory)..\TableStorage.SourceGenerators\bin\$(Configuration)\netstandard2.0\TableStorage.SourceGenerators.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 
 		<None Include="TableStorage.Core.props" Pack="true" PackagePath="build\TableStorage.Core.props" />
 	</ItemGroup>
@@ -34,7 +34,7 @@
 		<InternalsVisibleTo Include="TableStorage.Tests" />
 	</ItemGroup>
 
-	<ItemGroup>
+	<ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETStandard'">
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" />
 	</ItemGroup>
 </Project>

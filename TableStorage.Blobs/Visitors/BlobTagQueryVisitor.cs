@@ -12,6 +12,9 @@ internal sealed class BlobTagAccessor(IDictionary<string, string> dictionary)
     public static readonly MethodInfo MethodInfo = typeof(BlobTagAccessor).GetMethod(nameof(Get))!;
 }
 
+#if NET
+[System.Diagnostics.CodeAnalysis.RequiresDynamicCode("Rewrites lambdas to a different delegate type, which requires dynamic code.")]
+#endif
 internal sealed class BlobTagQueryVisitor<T>(ModelInfo modelInfo, IReadOnlyCollection<string> tags) : ExpressionVisitor
     where T : IBlobEntity
 {
@@ -85,7 +88,7 @@ internal sealed class BlobTagQueryVisitor<T>(ModelInfo modelInfo, IReadOnlyColle
             if (body is not ConstantExpression)
             {
                 parameters = [.. lambdaExpression.Parameters.Select(Visit).Cast<ParameterExpression>()];
-                arguments = [.. node.Arguments.Select(Visit)];
+                arguments = [.. node.Arguments.Select(x => Visit(x)!)];
                 var lambda = Expression.Lambda(body, parameters);
                 node = Expression.Invoke(lambda, arguments);
             }

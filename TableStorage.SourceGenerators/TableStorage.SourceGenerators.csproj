@@ -3,6 +3,9 @@
 	<PropertyGroup>
 		<!-- 👇 We don't want to reference the source generator dll directly in consuming projects -->
 		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<!-- Roslyn requires analyzers and source generators to target netstandard2.0 -->
+		<TargetFrameworks></TargetFrameworks>
+		<TargetFramework>netstandard2.0</TargetFramework>
 		<IsPackable>false</IsPackable>
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<VersionPrefix>$(MajorMinorVersion).$(BuildVersion)</VersionPrefix>

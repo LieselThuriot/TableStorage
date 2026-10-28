@@ -13,7 +13,7 @@ public static class BlobStorageSetup
 
     public static IBlobCreator BuildCreator(IServiceProvider services, Action<BlobOptions>? configure = null)
     {
-        BlobServiceClient client = ((BlobServiceClient)services.GetService(typeof(BlobServiceClient))) ?? throw new InvalidOperationException("BlobServiceClient not registered");
+        BlobServiceClient client = ((BlobServiceClient?)services.GetService(typeof(BlobServiceClient))) ?? throw new InvalidOperationException("BlobServiceClient not registered");
         return BuildCreator(client, configure);
     }
 

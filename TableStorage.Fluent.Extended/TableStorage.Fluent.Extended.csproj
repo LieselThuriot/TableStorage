@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.1</TargetFramework>
+    <TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
     <GeneratePackageOnBuild Condition="$(Configuration) == 'Release'">True</GeneratePackageOnBuild>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>TableStorage.png</PackageIcon>
@@ -18,7 +18,7 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
-    <None Update="TableStorage.png">
+    <None Include="TableStorage.png">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
@@ -32,7 +32,8 @@
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
 
-  <Target Name="TextTemplateTransform" BeforeTargets="BeforeBuild">
+  <!-- Runs once before the inner builds when multi-targeting; skipped by the inner builds when the output is up to date -->
+  <Target Name="TextTemplateTransform" BeforeTargets="DispatchToInnerBuilds;BeforeBuild" Inputs="..\TableStorage.Fluent\FluentTableEntity.tt;..\TableStorage.Fluent\Linq\FluentTableQueryHelper.tt" Outputs="FluentTableEntity.g.cs;FluentTableQueryHelper.g.cs">
     <Exec WorkingDirectory="$(ProjectDir)" Command="dotnet t4 ..\TableStorage.Fluent\FluentTableEntity.tt -p ExtendedClasses=true -o FluentTableEntity" />
     <Exec WorkingDirectory="$(ProjectDir)" Command="dotnet t4 ..\TableStorage.Fluent\Linq\FluentTableQueryHelper.tt -p ExtendedClasses=true -o FluentTableQueryHelper" />
   </Target>

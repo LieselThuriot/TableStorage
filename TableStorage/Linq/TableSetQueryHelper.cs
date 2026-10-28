@@ -213,9 +213,10 @@ internal sealed class TableSetQueryHelper<T>(TableSet<T> table) :
         }
         else
         {
-            ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], _parameter!);
+            ParameterExpression parameter = _parameter!;
+            ParameterReplacingVisitor predicateVisitor = new(predicate.Parameters[0], parameter);
             predicate = predicateVisitor.VisitAndConvert(predicate, nameof(AddFilter));
-            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), _parameter);
+            _filter = Expression.Lambda<Func<T, bool>>(Expression.AndAlso(_filter.Body, predicate.Body), parameter);
         }
 
         return this;

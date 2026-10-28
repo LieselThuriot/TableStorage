@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<GeneratePackageOnBuild Condition="$(Configuration) == 'Release'">True</GeneratePackageOnBuild>
@@ -13,7 +13,7 @@
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
 		</None>
-		<None Update="TableStorage.png">
+		<None Include="TableStorage.png">
 			<CopyToOutputDirectory>Never</CopyToOutputDirectory>
 			<Pack>True</Pack>
 			<PackagePath>\</PackagePath>
@@ -23,6 +23,9 @@
 
 	<ItemGroup>
 		<PackageReference Include="Azure.Storage.Blobs" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(TargetFrameworkIdentifier)' == '.NETStandard'">
 		<PackageReference Include="System.Text.Json" />
 	</ItemGroup>
 

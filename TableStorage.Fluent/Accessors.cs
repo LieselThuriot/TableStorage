@@ -7,7 +7,7 @@ namespace TableStorage.Fluent;
 
 internal static class Accessors
 {
-    private static readonly MethodInfo s_method = typeof(TableClient).GetMethod("Bind", BindingFlags.Static | BindingFlags.NonPublic, null, CallingConventions.Standard, [typeof(Expression)], []);
+    private static readonly MethodInfo s_method = typeof(TableClient).GetMethod("Bind", BindingFlags.Static | BindingFlags.NonPublic, null, CallingConventions.Standard, [typeof(Expression)], [])!;
 
     public static string Bind(Expression expression)
     {

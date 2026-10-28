@@ -1,4 +1,5 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace TableStorage.Linq;
 
@@ -74,19 +75,15 @@ internal static class Helpers
         }
     }
 
-    public static Expression<Func<T, bool>> CreateFindPredicate<T, TInterface>(string partitionKey, string rowKey)
-        where T : TInterface
+    public static Expression<Func<T, bool>> CreateFindPredicate<T>(PropertyInfo partitionKeyProperty, PropertyInfo rowKeyProperty, string partitionKey, string rowKey)
     {
         ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
-        UnaryExpression converted = Expression.Convert(parameter, typeof(TInterface));
-        MemberExpression partitionAccess = Expression.PropertyOrField(converted, "PartitionKey");
-        MemberExpression rowAccess = Expression.PropertyOrField(converted, "RowKey");
+        (MemberExpression partitionAccess, MemberExpression rowAccess) = CreateKeyAccess(parameter, partitionKeyProperty, rowKeyProperty);
 
         return CreateFindPredicate<T>(parameter, partitionAccess, rowAccess, partitionKey, rowKey);
     }
 
-    public static Expression<Func<T, bool>> CreateFindPredicate<T, TInterface>(IReadOnlyList<(string partitionKey, string rowKey)> keys)
-        where T : TInterface
+    public static Expression<Func<T, bool>> CreateFindPredicate<T>(PropertyInfo partitionKeyProperty, PropertyInfo rowKeyProperty, IReadOnlyList<(string partitionKey, string rowKey)> keys)
     {
         if (keys is null || keys.Count is 0)
         {
@@ -94,9 +91,7 @@ internal static class Helpers
         }
 
         ParameterExpression parameter = Expression.Parameter(typeof(T), "x");
-        UnaryExpression converted = Expression.Convert(parameter, typeof(TInterface));
-        MemberExpression partitionAccess = Expression.PropertyOrField(converted, "PartitionKey");
-        MemberExpression rowAccess = Expression.PropertyOrField(converted, "RowKey");
+        (MemberExpression partitionAccess, MemberExpression rowAccess) = CreateKeyAccess(parameter, partitionKeyProperty, rowKeyProperty);
 
         Expression<Func<T, bool>> filter = default!;
 
@@ -114,6 +109,12 @@ internal static class Helpers
         }
 
         return filter;
+    }
+
+    private static (MemberExpression partitionAccess, MemberExpression rowAccess) CreateKeyAccess(ParameterExpression parameter, PropertyInfo partitionKeyProperty, PropertyInfo rowKeyProperty)
+    {
+        UnaryExpression converted = Expression.Convert(parameter, partitionKeyProperty.DeclaringType!);
+        return (Expression.Property(converted, partitionKeyProperty), Expression.Property(converted, rowKeyProperty));
     }
 
     private static Expression<Func<T, bool>> CreateFindPredicate<T>(ParameterExpression parameter, Expression partitionAccess, Expression rowAccess, string partition, string row)

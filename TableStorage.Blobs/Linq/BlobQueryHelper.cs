@@ -1,10 +1,14 @@
-﻿using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace TableStorage.Linq;
 
 public static class BlobSetQueryHelper
 {
+    private static readonly PropertyInfo s_partitionKeyProperty = typeof(IBlobEntity).GetProperty(nameof(IBlobEntity.PartitionKey))!;
+    private static readonly PropertyInfo s_rowKeyProperty = typeof(IBlobEntity).GetProperty(nameof(IBlobEntity.RowKey))!;
+
     internal static BlobSetQueryHelper<T, TClient> CreateHelper<T, TClient>(BaseBlobSet<T, TClient> client)
         where TClient : BlobBaseClient
         where T : IBlobEntity
@@ -57,14 +61,14 @@ public static class BlobSetQueryHelper
     public static Task<T?> FindAsync<T>(this BlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
         where T : IBlobEntity
     {
-        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T, IBlobEntity>(partitionKey, rowKey);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(s_partitionKeyProperty, s_rowKeyProperty, partitionKey, rowKey);
         return table.Where(predicate).FirstOrDefaultAsync(token);
     }
 
     public static IFilteredBlobQueryable<T> FindAsync<T>(this BlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
         where T : IBlobEntity
     {
-        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T, IBlobEntity>(keys);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(s_partitionKeyProperty, s_rowKeyProperty, keys);
         return table.Where(predicate);
     }
 
@@ -113,14 +117,14 @@ public static class BlobSetQueryHelper
     public static Task<T?> FindAsync<T>(this AppendBlobSet<T> table, string partitionKey, string rowKey, CancellationToken token = default)
         where T : IBlobEntity
     {
-        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T, IBlobEntity>(partitionKey, rowKey);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(s_partitionKeyProperty, s_rowKeyProperty, partitionKey, rowKey);
         return table.Where(predicate).FirstOrDefaultAsync(token);
     }
 
     public static IFilteredBlobQueryable<T> FindAsync<T>(this AppendBlobSet<T> table, params IReadOnlyList<(string partitionKey, string rowKey)> keys)
         where T : IBlobEntity
     {
-        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T, IBlobEntity>(keys);
+        Expression<Func<T, bool>> predicate = Helpers.CreateFindPredicate<T>(s_partitionKeyProperty, s_rowKeyProperty, keys);
         return table.Where(predicate);
     }
 }

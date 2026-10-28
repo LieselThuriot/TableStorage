@@ -18,12 +18,12 @@ internal sealed class WhereVisitor(ModelInfo modelInfo) : ExpressionVisitor
 
                 if (name == _partitionKeyProxy && name is not nameof(ITableEntity.PartitionKey))
                 {
-                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), nameof(ITableEntity.PartitionKey));
+                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), TableEntityMembers.PartitionKey);
                 }
 
                 if (name == _rowKeyProxy && name is not nameof(ITableEntity.RowKey))
                 {
-                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), nameof(ITableEntity.RowKey));
+                    return Expression.Property(Expression.Convert(parameter, typeof(ITableEntity)), TableEntityMembers.RowKey);
                 }
             }
 
