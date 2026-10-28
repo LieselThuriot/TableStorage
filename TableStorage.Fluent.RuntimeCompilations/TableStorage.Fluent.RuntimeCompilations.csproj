@@ -19,7 +19,7 @@
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
-    <None Include="TableStorage.props" />
+    <None Include="TableStorage.props" Pack="true" PackagePath="build\TableStorage.Fluent.RuntimeCompilations.props" />
   </ItemGroup>
 
   <ItemGroup>
