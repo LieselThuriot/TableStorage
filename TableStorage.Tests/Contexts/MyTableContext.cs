@@ -40,9 +40,6 @@ public partial class MyTableContext
 [JsonSerializable(typeof(Model2))]
 [JsonSerializable(typeof(Model4))]
 [JsonSerializable(typeof(Model5))]
-[JsonSerializable(typeof(FluentTableEntity<FluentTestModelA, FluentTestModelB>))]
-[JsonSerializable(typeof(FluentPartitionTableEntity<FluentTestModelA, FluentTestModelB>))]
-[JsonSerializable(typeof(FluentRowTableEntity<FluentTestModelA, FluentTestModelB>))]
 [JsonSerializable(typeof(FluentTestModelA))]
 [JsonSerializable(typeof(FluentTestModelB))]
 public partial class ModelSerializationContext : JsonSerializerContext;

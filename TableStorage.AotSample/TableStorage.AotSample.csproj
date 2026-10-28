@@ -33,5 +33,6 @@
 		<ProjectReference Include="..\TableStorage.Blobs\TableStorage.Blobs.csproj" />
 		<ProjectReference Include="..\TableStorage.Fluent\TableStorage.Fluent.csproj" />
 		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\TableStorage.Fluent.SourceGenerators\TableStorage.Fluent.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 </Project>

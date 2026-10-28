@@ -12,8 +12,7 @@ A streamlined, source-generated way of working with Azure Data Tables and Blob S
 | [TableStorage.Core](https://www.nuget.org/packages/TableStorage.Core) | Core abstractions and LINQ helpers |
 | [TableStorage](https://www.nuget.org/packages/TableStorage) | Table Storage context, sets, and source generators |
 | [TableStorage.Blobs](https://www.nuget.org/packages/TableStorage.Blobs) | Blob Storage support (Block and Append blobs) |
-| [TableStorage.Fluent](https://www.nuget.org/packages/TableStorage.Fluent) | Polymorphic fluent entities (2–4 types per table) |
-| [TableStorage.Fluent.Extended](https://www.nuget.org/packages/TableStorage.Fluent.Extended) | Extended fluent entities (5–16 types per table) |
+| [TableStorage.Fluent](https://www.nuget.org/packages/TableStorage.Fluent) | Polymorphic fluent entities (2–16 types per table) |
 | [TableStorage.RuntimeCompilations](https://www.nuget.org/packages/TableStorage.RuntimeCompilations) | Runtime LINQ compilation for table queries |
 | [TableStorage.Blobs.RuntimeCompilations](https://www.nuget.org/packages/TableStorage.Blobs.RuntimeCompilations) | Runtime LINQ compilation for blob queries |
 | [TableStorage.Fluent.RuntimeCompilations](https://www.nuget.org/packages/TableStorage.Fluent.RuntimeCompilations) | Runtime LINQ compilation for fluent queries |
@@ -458,9 +457,10 @@ static void ConfigureBlobs(BlobOptions options)
 Fluent entities allow you to store multiple entity types in a single Azure Table using a discriminator pattern. This enables polymorphic table storage with type-safe pattern matching.
 
 ```bash
-dotnet add package TableStorage.Fluent           # 2–4 types per table
-dotnet add package TableStorage.Fluent.Extended  # 5–16 types per table
+dotnet add package TableStorage.Fluent  # 2–16 types per table
 ```
+
+The fluent types are generated in your project for the arities your table contexts use. Use `[assembly: TableStorage.Fluent.GenerateFluentEntities(...)]` to request others. `TableStorage.Fluent.Extended` is no longer needed and has been deprecated.
 
 ### Quick Example
 

@@ -4,7 +4,6 @@
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
-    <File Path="dotnet-tools.json" />
     <File Path="LICENSE" />
     <File Path="nuget.config" />
     <File Path="README.md" />
@@ -15,7 +14,7 @@
   <Project Path="TableStorage.Core/TableStorage.Core.csproj">
     <BuildDependency Project="TableStorage.SourceGenerators/TableStorage.SourceGenerators.csproj" />
   </Project>
-  <Project Path="TableStorage.Fluent.Extended/TableStorage.Fluent.Extended.csproj" Id="efc9eb8d-d568-46f5-b132-f0b9d934b5c7" />
+  <Project Path="TableStorage.Fluent.SourceGenerators/TableStorage.Fluent.SourceGenerators.csproj" />
   <Project Path="TableStorage.Fluent.RuntimeCompilations/TableStorage.Fluent.RuntimeCompilations.csproj" Id="e455d3e1-d7ca-4d79-97ea-cec09ed75921" />
   <Project Path="TableStorage.Fluent/TableStorage.Fluent.csproj" />
   <Project Path="TableStorage.RuntimeCompilations/TableStorage.RuntimeCompilations.csproj" />

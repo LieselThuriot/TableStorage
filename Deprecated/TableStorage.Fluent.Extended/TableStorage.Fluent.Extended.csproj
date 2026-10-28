@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Final, empty release of the deprecated TableStorage.Fluent.Extended package. It only depends on TableStorage.Fluent,
+		which now generates every arity. Not part of the solution: pack it once with `dotnet pack -c Release`,
+		publish it and mark the package as deprecated on nuget.org with TableStorage.Fluent as the alternative.
+	-->
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.1;net10.0</TargetFrameworks>
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<IncludeSymbols>false</IncludeSymbols>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+		<PackageIcon>TableStorage.png</PackageIcon>
+		<VersionPrefix>$(MajorMinorVersion).$(BuildVersion)</VersionPrefix>
+		<Description>Deprecated: TableStorage.Fluent now generates fluent entities for 2 to 16 types. Reference TableStorage.Fluent instead.</Description>
+		<!-- The package intentionally has no lib folder -->
+		<NoWarn>$(NoWarn);NU5128</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- PrivateAssets none so the TableStorage.Fluent source generator flows to projects that only reference this package -->
+		<ProjectReference Include="..\..\TableStorage.Fluent\TableStorage.Fluent.csproj" PackageVersion="[^,$)" PrivateAssets="none" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Include="README.md" Pack="true" PackagePath="\" />
+		<None Include="..\..\TableStorage.Fluent\TableStorage.png" Pack="true" PackagePath="\" Visible="false" />
+	</ItemGroup>
+</Project>

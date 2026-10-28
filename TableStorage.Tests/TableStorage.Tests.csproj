@@ -43,7 +43,6 @@
 		<!-- Mark the property as compiler aware, so it's added to the editor config-->
 		<CompilerVisibleProperty Include="PublishAot" />
 		<CompilerVisibleProperty Include="TableStorageSerializerContext" />
-		<ProjectReference Include="..\TableStorage.Fluent.Extended\TableStorage.Fluent.Extended.csproj" />
 		<ProjectReference Include="..\TableStorage.Fluent.RuntimeCompilations\TableStorage.Fluent.RuntimeCompilations.csproj" />
 		<ProjectReference Include="..\TableStorage.Fluent\TableStorage.Fluent.csproj" />
 
@@ -53,6 +52,7 @@
 		<ProjectReference Include="..\TableStorage.Blobs.RuntimeCompilations\TableStorage.Blobs.RuntimeCompilations.csproj" />
 		<ProjectReference Include="..\TableStorage.Core\TableStorage.Core.csproj" />
 		<ProjectReference Include="..\TableStorage.SourceGenerators\TableStorage.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+		<ProjectReference Include="..\TableStorage.Fluent.SourceGenerators\TableStorage.Fluent.SourceGenerators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
 	</ItemGroup>
 
 	<ItemGroup>
