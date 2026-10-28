@@ -1,45 +1,23 @@
 ﻿using System.Linq.Expressions;
 using System.Reflection;
-using System.Reflection.Emit;
+using System.Runtime.Serialization;
 
 namespace TableStorage.Fluent;
 
+/// <summary>
+/// Gives the <c>$type</c> discriminator a declared member, as C# doesn't allow that name. The Azure SDK uses the <see cref="DataMemberAttribute"/> name when translating filters.
+/// </summary>
+internal sealed class DollarType
+{
+    public const string Name = "$type";
+
+    [DataMember(Name = Name)]
+    public string? Type { get; set; }
+}
+
 internal static class DollarTypeClass
 {
-    static DollarTypeClass()
-    {
-        AssemblyName assemblyName = new("DollarTypes");
-        var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
+    private static readonly PropertyInfo s_property = typeof(DollarType).GetProperty(nameof(DollarType.Type))!;
 
-        ModuleBuilder moduleBuilder = assemblyBuilder.DefineDynamicModule("FluentModule");
-        TypeBuilder typeBuilder = moduleBuilder.DefineType("DollarType", TypeAttributes.Public);
-
-        FieldBuilder fieldBuilder = typeBuilder.DefineField("_type", typeof(string), FieldAttributes.Private);
-        PropertyBuilder propertyBuilder = typeBuilder.DefineProperty("$type", PropertyAttributes.HasDefault, typeof(string), null);
-
-        const MethodAttributes methodAttributes = MethodAttributes.Public | MethodAttributes.SpecialName | MethodAttributes.HideBySig;
-
-        MethodBuilder getMethodBuilder = typeBuilder.DefineMethod("get_$type", methodAttributes, typeof(string), Type.EmptyTypes);
-        ILGenerator getIL = getMethodBuilder.GetILGenerator();
-        getIL.Emit(OpCodes.Ldarg_0);
-        getIL.Emit(OpCodes.Ldfld, fieldBuilder);
-        getIL.Emit(OpCodes.Ret);
-        propertyBuilder.SetGetMethod(getMethodBuilder);
-
-        MethodBuilder setMethodBuilder = typeBuilder.DefineMethod("set_$type", methodAttributes, null, [typeof(string)]);
-        ILGenerator setIL = setMethodBuilder.GetILGenerator();
-        setIL.Emit(OpCodes.Ldarg_0);
-        setIL.Emit(OpCodes.Ldarg_1);
-        setIL.Emit(OpCodes.Stfld, fieldBuilder);
-        setIL.Emit(OpCodes.Ret);
-        propertyBuilder.SetSetMethod(setMethodBuilder);
-
-        Type = typeBuilder.CreateType();
-
-        ParameterExpression parameter = Expression.Parameter(Type, "x");
-        TypeProperty = Expression.Property(parameter, "$type");
-    }
-
-    public static Type Type { get; }
-    public static MemberExpression TypeProperty { get; }
+    public static MemberExpression TypeProperty { get; } = Expression.Property(Expression.Parameter(typeof(DollarType), "x"), s_property);
 }

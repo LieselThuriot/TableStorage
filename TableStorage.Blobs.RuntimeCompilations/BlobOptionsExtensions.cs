@@ -1,4 +1,4 @@
-﻿using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
@@ -8,10 +8,14 @@ public static class BlobOptionsExtensions
 {
     public static void EnableCompilationAtRuntime(this BlobOptions options)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(options);
+#else
         if (options is null)
         {
             throw new ArgumentNullException(nameof(options));
         }
+#endif
 
         options.QueryHandlerFactory = new CompilationQueryHandlerFactory();
     }

@@ -9,6 +9,7 @@
     <File Path="nuget.config" />
     <File Path="README.md" />
   </Folder>
+  <Project Path="TableStorage.AotSample/TableStorage.AotSample.csproj" />
   <Project Path="TableStorage.Blobs.RuntimeCompilations/TableStorage.Blobs.RuntimeCompilations.csproj" />
   <Project Path="TableStorage.Blobs/TableStorage.Blobs.csproj" />
   <Project Path="TableStorage.Core/TableStorage.Core.csproj">

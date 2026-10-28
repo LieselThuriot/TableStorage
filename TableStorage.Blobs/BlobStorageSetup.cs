@@ -26,7 +26,16 @@ public static class BlobStorageSetup
             configure(options);
         }
 
-        options.Serializer ??= JsonBlobSerializer.Instance;
+        if (options.Serializer is null)
+        {
+#if NET
+            if (!JsonSerializer.IsReflectionEnabledByDefault)
+            {
+                throw new InvalidOperationException($"Reflection-based JSON serialization is disabled (e.g. Native AOT). Set {nameof(BlobOptions)}.{nameof(BlobOptions.Serializer)}, for example to an {nameof(AotJsonBlobSerializer)} with a source generated JsonSerializerContext.");
+            }
+#endif
+            options.Serializer = JsonBlobSerializer.Instance;
+        }
 
         BlobStorageFactory factory = new(client, options.CreateContainerIfNotExists);
         return new(factory, options);

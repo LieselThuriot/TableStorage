@@ -1,4 +1,4 @@
-﻿namespace TableStorage;
+namespace TableStorage;
 
 public sealed class TableOptions
 {
@@ -8,7 +8,7 @@ public sealed class TableOptions
 
     public int? PageSize { get; set; }
 
-    public CreateIfNotExistsMode CreateTableIfNotExists { get; set; } = CreateIfNotExistsMode.Always;
+    public CreateIfNotExistsMode CreateTableIfNotExists { get; set; } = CreateIfNotExistsMode.Once;
 
     public BulkOperation BulkOperation { get; set; } = BulkOperation.Replace;
 

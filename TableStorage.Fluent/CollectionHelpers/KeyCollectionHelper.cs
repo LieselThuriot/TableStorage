@@ -27,10 +27,14 @@ internal readonly struct KeyCollectionHelper(IDictionary<string, object> backing
 
     public void CopyTo(string[] array, int arrayIndex)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(array);
+#else
         if (array is null)
         {
             throw new ArgumentNullException(nameof(array));
         }
+#endif
 
         if (arrayIndex < 0)
         {

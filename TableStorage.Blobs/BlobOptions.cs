@@ -1,4 +1,4 @@
-﻿using Azure.Storage.Blobs.Specialized;
+using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
 
@@ -11,7 +11,7 @@ public sealed class BlobOptions
         QueryHandlerFactory = new QueryHandlerFactory();
     }
 
-    public CreateIfNotExistsMode CreateContainerIfNotExists { get; set; } = CreateIfNotExistsMode.Always;
+    public CreateIfNotExistsMode CreateContainerIfNotExists { get; set; } = CreateIfNotExistsMode.Once;
 
     public IBlobSerializer Serializer { get; set; } = default!;
 

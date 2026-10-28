@@ -10,12 +10,10 @@
 		<RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
 		<EnableNETAnalyzers>true</EnableNETAnalyzers>
 		<AnalysisLevel>latest</AnalysisLevel>
-		<!-- Suggest APIs that don't exist on netstandard: ArgumentNullException.ThrowIfNull and Stream.DisposeAsync -->
-		<NoWarn>$(NoWarn);CA1510;RCS1261</NoWarn>
 	</PropertyGroup>
 
-	<!-- RuntimeCompilations and Fluent packages generate code at runtime, so they can't be AOT compatible -->
-	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' And !$(MSBuildProjectName.EndsWith('.Tests')) And !$(MSBuildProjectName.EndsWith('.RuntimeCompilations')) And !$(MSBuildProjectName.StartsWith('TableStorage.Fluent'))">
+	<!-- RuntimeCompilations packages generate code at runtime, so they can't be AOT compatible -->
+	<PropertyGroup Condition="'$(TargetFramework)' == 'net10.0' And !$(MSBuildProjectName.EndsWith('.Tests')) And !$(MSBuildProjectName.EndsWith('.RuntimeCompilations'))">
 		<IsAotCompatible>true</IsAotCompatible>
 	</PropertyGroup>
 	

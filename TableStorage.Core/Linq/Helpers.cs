@@ -7,10 +7,14 @@ internal static class Helpers
 {
     public static Expression<Func<T, bool>> CreateExistsInFilter<T, TElement>(this Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(elements);
+#else
         if (elements is null)
         {
             throw new ArgumentNullException(nameof(elements));
         }
+#endif
 
         Expression filter = BuildFilterExpression();
 
@@ -42,10 +46,14 @@ internal static class Helpers
 
     public static Expression<Func<T, bool>> CreateNotExistsInFilter<T, TElement>(this Expression<Func<T, TElement>> predicate, IEnumerable<TElement> elements)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(elements);
+#else
         if (elements is null)
         {
             throw new ArgumentNullException(nameof(elements));
         }
+#endif
 
         Expression filter = BuildFilterExpression();
 

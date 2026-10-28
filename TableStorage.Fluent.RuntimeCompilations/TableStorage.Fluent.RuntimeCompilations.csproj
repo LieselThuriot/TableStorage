@@ -28,5 +28,6 @@
     <ProjectReference Include="..\TableStorage\TableStorage.csproj" PackageVersion="[^,$)" />
     <Using Include="Azure" />
     <Using Include="Azure.Data.Tables" />
+    <InternalsVisibleTo Include="TableStorage.Tests" />
   </ItemGroup>
 </Project>

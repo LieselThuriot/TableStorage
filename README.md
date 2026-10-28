@@ -1,4 +1,4 @@
-﻿# TableStorage
+# TableStorage
 
 [![NuGet](https://img.shields.io/nuget/v/TableStorage.svg)](https://www.nuget.org/packages/TableStorage)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -241,7 +241,7 @@ static void Configure(TableOptions options)
 |----------|------|---------|-------------|
 | `TableMode` | `TableUpdateMode` | `Replace` | Update mode: `Merge` or `Replace` |
 | `PageSize` | `int?` | `null` | Number of entities per page when querying |
-| `CreateTableIfNotExists` | `CreateIfNotExistsMode` | `Always` | `Always`, `Once` (cached), or `Disabled` |
+| `CreateTableIfNotExists` | `CreateIfNotExistsMode` | `Once` | `Always`, `Once` (cached), or `Disabled` |
 | `BulkOperation` | `BulkOperation` | `Replace` | Default bulk operation mode: `Merge` or `Replace` |
 | `TransactionSafety` | `TransactionSafety` | `Enabled` | When `Enabled`, transactions are split by partition key and chunked |
 | `TransactionChunkSize` | `int` | `100` | Max operations per transaction batch (must be > 0) |
@@ -268,7 +268,7 @@ static void ConfigureBlobs(BlobOptions options)
 
 | Property | Type | Default | Description |
 |----------|------|---------|-------------|
-| `CreateContainerIfNotExists` | `CreateIfNotExistsMode` | `Always` | `Always`, `Once` (cached), or `Disabled` |
+| `CreateContainerIfNotExists` | `CreateIfNotExistsMode` | `Once` | `Always`, `Once` (cached), or `Disabled` |
 | `Serializer` | `IBlobSerializer` | STJ-based | Custom blob serializer implementation |
 | `UseTags` | `bool` | `true` | Store partition/row key and tagged properties as blob tags |
 

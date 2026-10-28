@@ -1,4 +1,4 @@
-﻿using Azure.Storage.Blobs.Models;
+using Azure.Storage.Blobs.Models;
 using Azure.Storage.Blobs.Specialized;
 using System.Linq.Expressions;
 using System.Runtime.CompilerServices;
@@ -141,10 +141,14 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     public async Task DeleteAllEntitiesAsync(string partitionKey, CancellationToken cancellationToken = default)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(partitionKey);
+#else
         if (partitionKey is null)
         {
             throw new ArgumentNullException(nameof(partitionKey));
         }
+#endif
 
         BlobContainerClient container = await _containerClient;
 
@@ -190,7 +194,11 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     internal async Task<T?> DownloadAsync(TClient blob, CancellationToken cancellationToken)
     {
+#if NET
+        await using Stream stream = await GetStreamAsync(blob, cancellationToken);
+#else
         using Stream stream = await GetStreamAsync(blob, cancellationToken);
+#endif
 
         if (stream.Length is 0)
         {
@@ -235,10 +243,14 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     public async IAsyncEnumerable<string> FindRowsAsync(string partition, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(partition);
+#else
         if (partition is null)
         {
             throw new ArgumentNullException(nameof(partition));
         }
+#endif
 
         BlobContainerClient container = await _containerClient;
 
@@ -261,10 +273,14 @@ public abstract class BaseBlobSet<T, TClient> : IStorageSet<T>
 
     public async IAsyncEnumerable<string> FindPartitionsAsync(string row, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(row);
+#else
         if (row is null)
         {
             throw new ArgumentNullException(nameof(row));
         }
+#endif
 
         BlobContainerClient container = await _containerClient;
 

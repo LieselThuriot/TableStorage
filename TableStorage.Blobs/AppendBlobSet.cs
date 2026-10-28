@@ -26,7 +26,11 @@ public sealed class AppendBlobSet<T> : BaseBlobSet<T, AppendBlobClient>
             int bytesRead;
             while ((bytesRead = await stream.ReadAsync(buffer, 0, maxBlockSize, cancellationToken)) > 0)
             {
+#if NET
+                await using var data = BinaryData.FromBytes(buffer.AsMemory(0, bytesRead)).ToStream();
+#else
                 using var data = BinaryData.FromBytes(buffer.AsMemory(0, bytesRead)).ToStream();
+#endif
                 await client.AppendBlockAsync(data, cancellationToken: cancellationToken);
             }
         }

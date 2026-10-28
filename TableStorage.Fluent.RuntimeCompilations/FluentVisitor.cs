@@ -1,4 +1,4 @@
-﻿using System.Linq.Expressions;
+using System.Linq.Expressions;
 using System.Reflection;
 
 namespace TableStorage.Fluent;
@@ -15,7 +15,8 @@ internal sealed class FluentVisitor(ParameterExpression parameter) : ExpressionV
     {
         if (node.Expression is ParameterExpression)
         {
-            var constant = Expression.Constant(node.Member.Name);
+            string name = node.Member.DeclaringType == typeof(DollarType) ? DollarType.Name : node.Member.Name;
+            var constant = Expression.Constant(name);
             var indexerAccess = Expression.Call(_parameter, s_getItemMethod, constant);
             return Expression.Convert(indexerAccess, node.Type);
         }

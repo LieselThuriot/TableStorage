@@ -1,11 +1,11 @@
-﻿namespace TableStorage;
+namespace TableStorage;
 
 internal sealed class BlobStorageFactory(BlobServiceClient client, CreateIfNotExistsMode mode)
 {
     private readonly BlobServiceClient _client = client;
     private readonly CreateIfNotExistsMode _creationMode = mode;
 
-    private static readonly HashSet<string> s_createdContainers = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _createdContainers = new(StringComparer.OrdinalIgnoreCase);
     public Task<BlobContainerClient> GetClient(string container)
     {
         BlobContainerClient client = _client.GetBlobContainerClient(container ?? throw new ArgumentNullException(nameof(container)));
@@ -18,11 +18,11 @@ internal sealed class BlobStorageFactory(BlobServiceClient client, CreateIfNotEx
         };
     }
 
-    private static bool ShouldInit(string container)
+    private bool ShouldInit(string container)
     {
-        lock (s_createdContainers)
+        lock (_createdContainers)
         {
-            return s_createdContainers.Add(container);
+            return _createdContainers.Add(container);
         }
     }
 

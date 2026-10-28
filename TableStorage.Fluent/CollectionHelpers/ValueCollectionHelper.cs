@@ -27,10 +27,14 @@ internal readonly struct ValueCollectionHelper(IDictionary<string, object> backi
 
     public void CopyTo(object[] array, int arrayIndex)
     {
+#if NET
+        ArgumentNullException.ThrowIfNull(array);
+#else
         if (array is null)
         {
             throw new ArgumentNullException(nameof(array));
         }
+#endif
 
         if (arrayIndex < 0)
         {
