@@ -37,7 +37,7 @@
 	</PropertyGroup>
 	
 	<PropertyGroup>
-		<MajorMinorVersion>6.2</MajorMinorVersion>
+		<MajorMinorVersion>6.3</MajorMinorVersion>
 		<BuildVersion>0</BuildVersion>
 		<NextMajorVersion>$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[0]), 1)).0</NextMajorVersion>
 		<NextMajorMinorVersion>$([System.String]::new('$(MajorMinorVersion)').Split('.')[0]).$([MSBuild]::Add($([System.String]::new('$(MajorMinorVersion)').Split('.')[1]), 1))</NextMajorMinorVersion>
